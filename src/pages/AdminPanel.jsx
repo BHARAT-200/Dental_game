@@ -2,13 +2,16 @@ import { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Home, Plus, Pencil, Trash2, Check, X, RotateCcw,
-  ChevronDown, ChevronUp, AlertTriangle, CheckCircle2,
-  BookOpen, Zap, HelpCircle, ListChecks, Crosshair,
+  AlertTriangle, CheckCircle2,
+  HelpCircle,
   ShieldAlert,
 } from 'lucide-react';
 import Button from '../components/Button';
 import { useAdminQuestions, genId } from '../hooks/useAdminQuestions';
 import { playSound } from '../utils/sounds';
+
+// Memoized option arrays to prevent recreation on every render
+const OPTION_AB = [{ value: 'A', label: 'Option A' }, { value: 'B', label: 'Option B' }];
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Small shared primitives
@@ -309,8 +312,8 @@ async function processImage(file) {
       let width = img.width;
       let height = img.height;
       
-      // Scale down if needed
-      const maxDim = 1200;
+      // Scale down if needed - more aggressive for better performance
+      const maxDim = 1024; // Reduced from 1200
       if (width > maxDim || height > maxDim) {
         if (width > height) {
           height = (height / width) * maxDim;
@@ -326,8 +329,8 @@ async function processImage(file) {
       const ctx = canvas.getContext('2d');
       ctx.drawImage(img, 0, 0, width, height);
       
-      // Compress as JPEG with quality 0.7
-      const compressed = canvas.toDataURL('image/jpeg', 0.7);
+      // Compress as JPEG with quality 0.65 for smaller file size
+      const compressed = canvas.toDataURL('image/jpeg', 0.65);
       resolve(compressed);
     };
     img.src = dataURL;
@@ -630,7 +633,7 @@ function ThisOrThatPanel({ questions, onAdd, onUpdate, onDelete }) {
                 <SelectInput
                   value={form.correct}
                   onChange={v => setForm(f => ({ ...f, correct: v }))}
-                  options={[{ value: 'A', label: 'Option A' }, { value: 'B', label: 'Option B' }]}
+                  options={OPTION_AB}
                 />
               </Field>
               <Field label="Explanation (optional)">
@@ -843,7 +846,10 @@ function MCQPanel({ questions, onAdd, onUpdate, onDelete }) {
                 <SelectInput
                   value={form.correct}
                   onChange={v => setForm(f => ({ ...f, correct: parseInt(v) }))}
-                  options={[0, 1, 2, 3].map(n => ({ value: n, label: `Option ${'ABCD'[n]}${form.options[n] ? ` — ${form.options[n].slice(0, 30)}` : ''}` }))}
+                  options={form.options.map((opt, n) => ({ 
+                    value: n, 
+                    label: `Option ${'ABCD'[n]}${opt ? ` — ${opt.slice(0, 30)}` : ''}` 
+                  }))}
                 />
               </Field>
               <Field label="Explanation *" error={errors.explanation}>

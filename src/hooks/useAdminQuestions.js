@@ -77,9 +77,13 @@ export function useAdminQuestions() {
     return defaults;
   });
 
-  // Keep localStorage in sync whenever bank changes
+  // Keep localStorage in sync - debounced to avoid excessive writes
   useEffect(() => {
-    saveAdminQuestions(bank);
+    const timeoutId = setTimeout(() => {
+      saveAdminQuestions(bank);
+    }, 500); // Debounce by 500ms
+    
+    return () => clearTimeout(timeoutId);
   }, [bank]);
 
   // ── helpers ──────────────────────────────────────────────

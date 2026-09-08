@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown, ChevronUp, Plus, Trash2, Play, Home, Download, Upload, Pencil } from 'lucide-react';
 import Button from '../components/Button';
@@ -9,6 +9,10 @@ import {
   defaultThisOrThatQuestions,
   defaultRapidFireQuestions,
 } from '../data/customQuestions';
+
+// Memoized option arrays to prevent recreation on every render
+const OPTION_AB = [{ value: 'A', label: 'Option A' }, { value: 'B', label: 'Option B' }];
+const OPTION_ABCD = [0, 1, 2, 3].map(n => ({ value: n, label: `Option ${'ABCD'[n]}` }));
 
 // ──────────────────────────────────────────────────────────
 // Helper: Collapsible Section
@@ -256,7 +260,7 @@ function FunctionMCQBuilder({ data, onChange }) {
             ))}
           </div>
           <Select label="Correct Option" value={q.correct} onChange={v => update(i, 'correct', parseInt(v))}
-            options={[0,1,2,3].map(n => ({ value: n, label: `Option ${'ABCD'[n]}` }))} />
+            options={OPTION_ABCD} />
           <Input placeholder="Explanation (optional)" value={q.explanation} onChange={v => update(i, 'explanation', v)} />
         </motion.div>
       ))}
@@ -293,7 +297,7 @@ function ThisOrThatBuilder({ data, onChange }) {
             <Input placeholder="Option B" value={q.optionB} onChange={v => update(i, 'optionB', v)} />
           </div>
           <Select label="Correct Answer" value={q.correct} onChange={v => update(i, 'correct', v)}
-            options={[{ value: 'A', label: 'Option A' }, { value: 'B', label: 'Option B' }]} />
+            options={OPTION_AB} />
           <Input placeholder="Explanation (optional)" value={q.explanation} onChange={v => update(i, 'explanation', v)} />
         </motion.div>
       ))}
