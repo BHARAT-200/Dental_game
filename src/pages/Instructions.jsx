@@ -2,7 +2,7 @@ import { motion } from 'framer-motion';
 import Button from '../components/Button';
 
 const rounds = [
-  { emoji: '🔤', title: 'Round 1 – Crossword', desc: 'Fill the dental crossword grid using hints. +10 pts per correct word.', color: 'border-indigo-500/30' },
+  { emoji: '🖼️', title: 'Round 1 – Identify the Image', desc: 'Look at two dental images and identify what they show. +10 pts per correct answer.', color: 'border-indigo-500/30' },
   { emoji: '⚖️', title: 'Round 2 – This or That', desc: 'Pick the correct option from two dental choices. +10 pts each.', color: 'border-purple-500/30' },
   { emoji: '🧩', title: 'Round 3 – Riddles', desc: 'Solve dental science riddles with hints available. +15 pts each.', color: 'border-cyan-500/30' },
   { emoji: '📝', title: 'Round 4 – MCQs', desc: 'Answer multiple-choice dental questions. +10 pts each.', color: 'border-green-500/30' },

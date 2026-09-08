@@ -5,7 +5,7 @@ import Home from './pages/Home';
 import Instructions from './pages/Instructions';
 import QuestionBuilder from './pages/QuestionBuilder';
 import AdminPanel from './pages/AdminPanel';
-import Round1Crossword from './pages/Round1Crossword';
+import Round1Images from './pages/Round1Images';
 import Round2ThisOrThat from './pages/Round2ThisOrThat';
 import Round3Riddles from './pages/Round3Riddles';
 import Round4MCQ from './pages/Round4MCQ';
@@ -98,8 +98,8 @@ export default function App() {
 
           {game.screen === SCREENS.ROUND1 && game.questions && (
             <PageWrapper key="round1">
-              <Round1Crossword
-                crosswordData={game.questions.crossword}
+              <Round1Images
+                questions={game.questions.images}
                 totalScore={game.scores.total}
                 onComplete={(score) => handleRoundComplete('round1', score)}
               />

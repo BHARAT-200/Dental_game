@@ -234,14 +234,6 @@ function EmptyState({ emoji, onAdd }) {
 // Validation helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-function validateCrossword(q) {
-  const errs = {};
-  if (!q.answer.trim()) errs.answer = 'Answer/word is required.';
-  else if (!/^[A-Za-z]+$/.test(q.answer.trim())) errs.answer = 'Word must contain letters only (no spaces or numbers).';
-  if (!q.hint.trim()) errs.hint = 'Hint/clue is required.';
-  return errs;
-}
-
 function validateThisOrThat(q) {
   const errs = {};
   if (!q.question.trim()) errs.question = 'Question is required.';
@@ -280,40 +272,143 @@ function validateRapidFire(q) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ROUND 1 — Crossword
+// ROUND 1 — Image Questions
 // ─────────────────────────────────────────────────────────────────────────────
 
-function blankCrossword() {
-  return { answer: '', hint: '' };
+function blankImageQuestion() {
+  return { image1: '', image2: '', answer: '', hint: '', explanation: '' };
 }
 
-function CrosswordPanel({ questions, onAdd, onUpdate, onDelete }) {
-  const [editingId, setEditingId] = useState(null);   // null = no edit, 'new' = adding
-  const [form, setForm]           = useState(blankCrossword());
-  const [errors, setErrors]       = useState({});
+// Helper to convert File to data URL (base64)
+function fileToDataURL(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+// Helper to compress image if needed (max 500KB per image)
+async function processImage(file) {
+  const MAX_SIZE_KB = 500;
+  const dataURL = await fileToDataURL(file);
+  
+  // Check size (rough estimate: base64 is ~1.37x original)
+  const sizeKB = (dataURL.length * 0.75) / 1024;
+  
+  if (sizeKB <= MAX_SIZE_KB) {
+    return dataURL;
+  }
+  
+  // If too large, create canvas and compress
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      let width = img.width;
+      let height = img.height;
+      
+      // Scale down if needed
+      const maxDim = 1200;
+      if (width > maxDim || height > maxDim) {
+        if (width > height) {
+          height = (height / width) * maxDim;
+          width = maxDim;
+        } else {
+          width = (width / height) * maxDim;
+          height = maxDim;
+        }
+      }
+      
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, width, height);
+      
+      // Compress as JPEG with quality 0.7
+      const compressed = canvas.toDataURL('image/jpeg', 0.7);
+      resolve(compressed);
+    };
+    img.src = dataURL;
+  });
+}
+
+function ImagesPanel({ questions, onAdd, onUpdate, onDelete }) {
+  const [editingId, setEditingId] = useState(null);
+  const [form, setForm] = useState(blankImageQuestion());
+  const [errors, setErrors] = useState({});
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [uploading, setUploading] = useState(false);
 
   const openAdd = () => {
-    setForm(blankCrossword());
+    setForm(blankImageQuestion());
     setErrors({});
     setEditingId('new');
   };
 
   const openEdit = (q) => {
-    setForm({ answer: q.answer, hint: q.hint });
+    setForm({
+      image1: q.image1,
+      image2: q.image2,
+      answer: q.answer,
+      hint: q.hint ?? '',
+      explanation: q.explanation ?? '',
+    });
     setErrors({});
     setEditingId(q.id);
   };
 
   const cancel = () => { setEditingId(null); setErrors({}); };
 
+  const handleImageUpload = async (field, file) => {
+    if (!file) return;
+    
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      setErrors(e => ({ ...e, [field]: 'Please select a valid image file.' }));
+      return;
+    }
+    
+    // Check file size (max 5MB original)
+    if (file.size > 5 * 1024 * 1024) {
+      setErrors(e => ({ ...e, [field]: 'Image is too large. Please use an image under 5MB.' }));
+      return;
+    }
+    
+    try {
+      setUploading(true);
+      const dataURL = await processImage(file);
+      setForm(f => ({ ...f, [field]: dataURL }));
+      setErrors(e => ({ ...e, [field]: null }));
+    } catch (err) {
+      setErrors(e => ({ ...e, [field]: 'Failed to process image.' }));
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const validateImageQuestion = (q) => {
+    const errs = {};
+    if (!q.image1) errs.image1 = 'Image 1 is required.';
+    if (!q.image2) errs.image2 = 'Image 2 is required.';
+    if (!q.answer.trim()) errs.answer = 'Answer is required.';
+    return errs;
+  };
+
   const save = () => {
-    const trimmed = { answer: form.answer.trim().toUpperCase(), hint: form.hint.trim() };
-    const errs = validateCrossword(trimmed);
+    const trimmed = {
+      image1: form.image1,
+      image2: form.image2,
+      answer: form.answer.trim(),
+      hint: form.hint.trim(),
+      explanation: form.explanation.trim(),
+    };
+    const errs = validateImageQuestion(trimmed);
     if (Object.keys(errs).length) { setErrors(errs); return null; }
 
     if (editingId === 'new') {
-      onAdd({ id: genId('cw'), ...trimmed });
+      onAdd({ id: genId('img'), ...trimmed });
     } else {
       onUpdate({ id: editingId, ...trimmed });
     }
@@ -334,26 +429,91 @@ function CrosswordPanel({ questions, onAdd, onUpdate, onDelete }) {
           >
             <div className="glass rounded-xl p-4 border border-indigo-500/40">
               <p className="text-xs font-bold text-indigo-300 mb-3">
-                {editingId === 'new' ? '➕ New Crossword Word' : '✏️ Edit Word'}
+                {editingId === 'new' ? '➕ New Image Question' : '✏️ Edit Question'}
               </p>
-              <Field label="Answer / Word *" error={errors.answer}>
+
+              {/* Image 1 Upload */}
+              <Field label="Image 1 *" error={errors.image1}>
+                <div className="space-y-2">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => handleImageUpload('image1', e.target.files[0])}
+                    className="w-full text-xs file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-indigo-500/20 file:text-indigo-300 hover:file:bg-indigo-500/30 file:cursor-pointer"
+                    disabled={uploading}
+                  />
+                  {form.image1 && (
+                    <div className="relative w-full aspect-video rounded-lg overflow-hidden bg-slate-800 border border-white/10">
+                      <img src={form.image1} alt="Preview 1" className="w-full h-full object-contain" />
+                      <button
+                        onClick={() => setForm(f => ({ ...f, image1: '' }))}
+                        className="absolute top-2 right-2 w-6 h-6 rounded-full bg-red-500/80 hover:bg-red-500 flex items-center justify-center text-white"
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </Field>
+
+              {/* Image 2 Upload */}
+              <Field label="Image 2 *" error={errors.image2}>
+                <div className="space-y-2">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => handleImageUpload('image2', e.target.files[0])}
+                    className="w-full text-xs file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-indigo-500/20 file:text-indigo-300 hover:file:bg-indigo-500/30 file:cursor-pointer"
+                    disabled={uploading}
+                  />
+                  {form.image2 && (
+                    <div className="relative w-full aspect-video rounded-lg overflow-hidden bg-slate-800 border border-white/10">
+                      <img src={form.image2} alt="Preview 2" className="w-full h-full object-contain" />
+                      <button
+                        onClick={() => setForm(f => ({ ...f, image2: '' }))}
+                        className="absolute top-2 right-2 w-6 h-6 rounded-full bg-red-500/80 hover:bg-red-500 flex items-center justify-center text-white"
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </Field>
+
+              <Field label="Answer *" error={errors.answer}>
                 <TextInput
                   value={form.answer}
-                  onChange={v => setForm(f => ({ ...f, answer: v.toUpperCase() }))}
-                  placeholder="e.g. ENAMEL (letters only)"
+                  onChange={v => setForm(f => ({ ...f, answer: v }))}
+                  placeholder="e.g. Dental Caries"
                 />
               </Field>
-              <Field label="Hint / Clue *" error={errors.hint}>
-                <TextArea
+
+              <Field label="Hint (optional)">
+                <TextInput
                   value={form.hint}
                   onChange={v => setForm(f => ({ ...f, hint: v }))}
-                  placeholder="e.g. Hardest tissue in the human body"
+                  placeholder="Optional hint for students"
                 />
               </Field>
+
+              <Field label="Explanation (optional)">
+                <TextArea
+                  value={form.explanation}
+                  onChange={v => setForm(f => ({ ...f, explanation: v }))}
+                  placeholder="Explanation shown after answering"
+                />
+              </Field>
+
               <div className="flex gap-2">
-                <Button variant="success" size="sm" onClick={save} icon={<Check size={14} />}>Save</Button>
-                <Button variant="secondary" size="sm" onClick={cancel} icon={<X size={14} />}>Cancel</Button>
+                <Button variant="success" size="sm" onClick={save} icon={<Check size={14} />} disabled={uploading}>
+                  {uploading ? 'Processing...' : 'Save'}
+                </Button>
+                <Button variant="secondary" size="sm" onClick={cancel} icon={<X size={14} />} disabled={uploading}>Cancel</Button>
               </div>
+
+              {uploading && (
+                <p className="text-xs text-indigo-300 mt-2">⏳ Processing image...</p>
+              )}
             </div>
           </motion.div>
         )}
@@ -361,7 +521,7 @@ function CrosswordPanel({ questions, onAdd, onUpdate, onDelete }) {
 
       {/* List */}
       {questions.length === 0 && editingId === null
-        ? <EmptyState emoji="🔤" onAdd={openAdd} />
+        ? <EmptyState emoji="🖼️" onAdd={openAdd} />
         : (
           <>
             <AnimatePresence>
@@ -372,14 +532,22 @@ function CrosswordPanel({ questions, onAdd, onUpdate, onDelete }) {
                   onEdit={() => openEdit(q)}
                   onDelete={() => setDeleteTarget(q.id)}
                 >
-                  <p className="text-white font-bold text-sm tracking-widest">{q.answer}</p>
-                  <p className="text-slate-400 text-xs mt-0.5">{q.hint}</p>
+                  <div className="grid grid-cols-2 gap-2 mb-2">
+                    <div className="aspect-video rounded overflow-hidden bg-slate-800 border border-white/10">
+                      <img src={q.image1} alt="Img 1" className="w-full h-full object-cover" />
+                    </div>
+                    <div className="aspect-video rounded overflow-hidden bg-slate-800 border border-white/10">
+                      <img src={q.image2} alt="Img 2" className="w-full h-full object-cover" />
+                    </div>
+                  </div>
+                  <p className="text-white font-bold text-sm">Answer: {q.answer}</p>
+                  {q.hint && <p className="text-slate-400 text-xs">Hint: {q.hint}</p>}
                 </QuestionCard>
               ))}
             </AnimatePresence>
             {editingId === null && (
               <Button variant="secondary" size="sm" onClick={openAdd} icon={<Plus size={14} />} className="mt-1">
-                Add Word
+                Add Image Question
               </Button>
             )}
           </>
@@ -390,7 +558,7 @@ function CrosswordPanel({ questions, onAdd, onUpdate, onDelete }) {
       <AnimatePresence>
         {deleteTarget && (
           <ConfirmModal
-            message="Delete this crossword word? It will be removed from all future games."
+            message="Delete this image question? It will be removed from all future games."
             onConfirm={() => { onDelete(deleteTarget); setDeleteTarget(null); }}
             onCancel={() => setDeleteTarget(null)}
           />
@@ -837,11 +1005,11 @@ function RapidFirePanel({ questions, onAdd, onUpdate, onDelete }) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 const ROUNDS = [
-  { key: 'crossword',  label: 'Crossword',    emoji: '🔤', color: 'border-indigo-500/30',  accent: 'text-indigo-300' },
-  { key: 'thisOrThat', label: 'This or That', emoji: '⚖️', color: 'border-purple-500/30',  accent: 'text-purple-300' },
-  { key: 'riddles',    label: 'Riddles',       emoji: '🧩', color: 'border-cyan-500/30',    accent: 'text-cyan-300'   },
-  { key: 'mcq',        label: 'MCQ',           emoji: '📝', color: 'border-green-500/30',   accent: 'text-green-300'  },
-  { key: 'rapidFire',  label: 'Rapid Fire',    emoji: '⚡', color: 'border-yellow-500/30',  accent: 'text-yellow-300' },
+  { key: 'images',     label: 'Image Questions', emoji: '🖼️', color: 'border-indigo-500/30',  accent: 'text-indigo-300' },
+  { key: 'thisOrThat', label: 'This or That',    emoji: '⚖️', color: 'border-purple-500/30',  accent: 'text-purple-300' },
+  { key: 'riddles',    label: 'Riddles',          emoji: '🧩', color: 'border-cyan-500/30',    accent: 'text-cyan-300'   },
+  { key: 'mcq',        label: 'MCQ',              emoji: '📝', color: 'border-green-500/30',   accent: 'text-green-300'  },
+  { key: 'rapidFire',  label: 'Rapid Fire',       emoji: '⚡', color: 'border-yellow-500/30',  accent: 'text-yellow-300' },
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -851,7 +1019,7 @@ const ROUNDS = [
 export default function AdminPanel({ onHome }) {
   const { bank, addQuestion, updateQuestion, removeQuestion, resetToDefaults, getCount } = useAdminQuestions();
 
-  const [activeTab, setActiveTab]   = useState('crossword');
+  const [activeTab, setActiveTab]   = useState('images');
   const [toast, setToast]           = useState(null);  // { message, type }
   const [resetConfirm, setResetConfirm] = useState(false);
 
@@ -972,12 +1140,12 @@ export default function AdminPanel({ onHome }) {
           </div>
 
           {/* Panel content */}
-          {activeTab === 'crossword' && (
-            <CrosswordPanel
-              questions={bank.crossword}
-              onAdd={q => handleAdd('crossword', q)}
-              onUpdate={q => handleUpdate('crossword', q)}
-              onDelete={id => handleDelete('crossword', id)}
+          {activeTab === 'images' && (
+            <ImagesPanel
+              questions={bank.images}
+              onAdd={q => handleAdd('images', q)}
+              onUpdate={q => handleUpdate('images', q)}
+              onDelete={id => handleDelete('images', id)}
             />
           )}
           {activeTab === 'thisOrThat' && (
@@ -1043,7 +1211,7 @@ export default function AdminPanel({ onHome }) {
 
 function RoundHint({ roundKey }) {
   const hints = {
-    crossword:  'Words are placed into the auto-generated crossword grid. Letters only, no spaces.',
+    images:     'Upload 2 images per question. Images are stored as base64 and compressed automatically.',
     thisOrThat: 'Player picks between two options. Mark which one is correct.',
     riddles:    'Player types a free-text answer. Matching is fuzzy — synonyms are accepted.',
     mcq:        '4 options required. Select the correct one from the dropdown.',

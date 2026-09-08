@@ -1,14 +1,13 @@
 import { useState, useCallback } from 'react';
 import { pickRandom, shuffle } from '../utils/helpers';
 import {
-  crosswordWords,
+  imageQuestions,
   thisOrThatQuestions,
   riddles,
   mcqQuestions,
   rapidFireQuestions,
 } from '../data/questions';
 import { getAdminQuestions } from '../utils/storage';
-import { generateCrossword } from '../utils/crosswordGenerator';
 
 export const SCREENS = {
   HOME: 'home',
@@ -36,24 +35,23 @@ function buildQuestionsFromAdminBank() {
   const bank = getAdminQuestions();
 
   // Fallback pools from static data (used when bank is null or a round is empty)
-  const fallbackCW    = crosswordWords;
+  const fallbackImg   = imageQuestions;
   const fallbackTOT   = thisOrThatQuestions;
   const fallbackRid   = riddles;
   const fallbackMCQ   = mcqQuestions;
   const fallbackRF    = rapidFireQuestions;
 
-  const cwPool  = bank?.crossword?.length  ? bank.crossword  : fallbackCW;
-  const totPool = bank?.thisOrThat?.length ? bank.thisOrThat : fallbackTOT;
-  const ridPool = bank?.riddles?.length    ? bank.riddles    : fallbackRid;
-  const mcqPool = bank?.mcq?.length        ? bank.mcq        : fallbackMCQ;
-  const rfPool  = bank?.rapidFire?.length  ? bank.rapidFire  : fallbackRF;
+  const imgPool = bank?.images?.length      ? bank.images      : fallbackImg;
+  const totPool = bank?.thisOrThat?.length  ? bank.thisOrThat  : fallbackTOT;
+  const ridPool = bank?.riddles?.length     ? bank.riddles     : fallbackRid;
+  const mcqPool = bank?.mcq?.length         ? bank.mcq         : fallbackMCQ;
+  const rfPool  = bank?.rapidFire?.length   ? bank.rapidFire   : fallbackRF;
 
-  // Pick counts — use all available if fewer than target
-  const cwords     = pickRandom(cwPool,  Math.min(12, cwPool.length));
-  const crossword  = generateCrossword(cwords);
+  // Pick counts — select 10 for Round 1, use all available if fewer than 10
+  const images = shuffle(imgPool).slice(0, Math.min(10, imgPool.length));
 
   return {
-    crossword,
+    images,
     thisOrThat: shuffle(totPool).slice(0, Math.min(10, totPool.length)),
     riddles:    shuffle(ridPool).slice(0, Math.min(8,  ridPool.length)),
     mcq:        shuffle(mcqPool).slice(0, Math.min(15, mcqPool.length)),
@@ -87,17 +85,18 @@ export function useGameState() {
   const startCustomGame = useCallback((custom) => {
     const bank = getAdminQuestions();
 
-    const fallbackCW  = bank?.crossword?.length  ? bank.crossword  : crosswordWords;
-    const fallbackTOT = bank?.thisOrThat?.length ? bank.thisOrThat : thisOrThatQuestions;
-    const fallbackRid = bank?.riddles?.length    ? bank.riddles    : riddles;
-    const fallbackMCQ = bank?.mcq?.length        ? bank.mcq        : mcqQuestions;
-    const fallbackRF  = bank?.rapidFire?.length  ? bank.rapidFire  : rapidFireQuestions;
+    const fallbackImg = bank?.images?.length      ? bank.images      : imageQuestions;
+    const fallbackTOT = bank?.thisOrThat?.length  ? bank.thisOrThat  : thisOrThatQuestions;
+    const fallbackRid = bank?.riddles?.length     ? bank.riddles     : riddles;
+    const fallbackMCQ = bank?.mcq?.length         ? bank.mcq         : mcqQuestions;
+    const fallbackRF  = bank?.rapidFire?.length   ? bank.rapidFire   : rapidFireQuestions;
 
-    const cwSource = custom.crosswordWords?.length ? custom.crosswordWords : pickRandom(fallbackCW, 8);
-    const crossword = generateCrossword(cwSource);
+    const imgSource = custom.images?.length
+      ? custom.images
+      : shuffle(fallbackImg).slice(0, Math.min(10, fallbackImg.length));
 
     const q = {
-      crossword,
+      images: imgSource,
       thisOrThat: custom.thisOrThat?.length
         ? custom.thisOrThat
         : shuffle(fallbackTOT).slice(0, Math.min(10, fallbackTOT.length)),

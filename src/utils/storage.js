@@ -80,7 +80,7 @@ export function clearGameState() {
 // ============================================================
 // Structure:
 // {
-//   crossword:  [{ id, answer, hint }, ...]
+//   images:     [{ id, image1, image2, answer, hint, explanation }, ...]
 //   thisOrThat: [{ id, question, optionA, optionB, correct, explanation }, ...]
 //   riddles:    [{ id, riddle, answer, hint }, ...]
 //   mcq:        [{ id, question, options:[4], correct, explanation }, ...]
@@ -89,7 +89,7 @@ export function clearGameState() {
 
 /** Return an empty bank skeleton */
 export function emptyAdminBank() {
-  return { crossword: [], thisOrThat: [], riddles: [], mcq: [], rapidFire: [] };
+  return { images: [], thisOrThat: [], riddles: [], mcq: [], rapidFire: [] };
 }
 
 /**

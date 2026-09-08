@@ -9,7 +9,7 @@ import {
   emptyAdminBank,
 } from '../utils/storage';
 import {
-  crosswordWords,
+  imageQuestions,
   thisOrThatQuestions,
   riddles,
   mcqQuestions,
@@ -22,10 +22,13 @@ import {
 // ────────────────────────────────────────────────────────────
 function buildDefaultBank() {
   return {
-    crossword: crosswordWords.map((q, i) => ({
-      id: `cw_default_${i}`,
+    images: imageQuestions.map((q, i) => ({
+      id: `img_default_${i}`,
+      image1: q.image1,
+      image2: q.image2,
       answer: q.answer,
-      hint: q.hint,
+      hint: q.hint ?? '',
+      explanation: q.explanation ?? '',
     })),
     thisOrThat: thisOrThatQuestions.map((q, i) => ({
       id: `tot_default_${i}`,

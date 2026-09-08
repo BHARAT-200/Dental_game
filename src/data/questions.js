@@ -3,25 +3,11 @@
 // ============================================================
 
 // ============================================================
-// ROUND 1 – CROSSWORD WORDS (Dental Science)
+// ROUND 1 – IMAGE IDENTIFICATION (Dental Science)
 // ============================================================
-export const crosswordWords = [
-  { answer: "ENAMEL",       hint: "Hardest tissue in the human body; covers the crown" },
-  { answer: "DENTIN",       hint: "Yellowish tissue beneath enamel; contains dentinal tubules" },
-  { answer: "PULP",         hint: "Vascular and nervous core of the tooth" },
-  { answer: "CARIES",       hint: "Tooth decay caused by acid-producing bacteria" },
-  { answer: "GINGIVA",      hint: "The gum tissue surrounding the teeth" },
-  { answer: "CEMENTUM",     hint: "Bone-like tissue covering the root surface" },
-  { answer: "AMALGAM",      hint: "Classic dental restorative alloy containing mercury" },
-  { answer: "FLUORIDE",     hint: "Ion that strengthens enamel and prevents decay" },
-  { answer: "OCCLUSION",    hint: "The contact relationship between upper and lower teeth" },
-  { answer: "PLAQUE",       hint: "Sticky biofilm of bacteria on tooth surface" },
-  { answer: "CALCULUS",     hint: "Mineralized plaque; also called tartar" },
-  { answer: "INCISOR",      hint: "Chisel-shaped anterior tooth used for cutting food" },
-  { answer: "PERIODONTIUM", hint: "Supporting structures around the tooth" },
-  { answer: "ENDODONTICS",  hint: "Branch of dentistry dealing with root canal treatment" },
-  { answer: "ORTHODONTICS", hint: "Specialty for correcting tooth alignment with braces" },
-];
+// Note: Default image questions are empty. Admins should add their own
+// image questions through the Admin Panel with actual images.
+export const imageQuestions = [];
 
 // ============================================================
 // ROUND 2 – THIS OR THAT (Dental Science)

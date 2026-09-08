@@ -111,7 +111,7 @@ export default function Home({ onRandom, onCustom, onLeaderboard, onAdmin }) {
         </motion.button>
       </motion.div>
       <motion.div variants={itemVariants} className="flex flex-wrap justify-center gap-3 mb-10">
-        {['5 Unique Rounds', 'Crossword', 'MCQs', 'Riddles', 'Rapid Fire', 'Leaderboard', 'Confetti'].map(f => (
+        {['5 Unique Rounds', 'Image ID', 'MCQs', 'Riddles', 'Rapid Fire', 'Leaderboard', 'Confetti'].map(f => (
           <span key={f} className="glass rounded-full px-3 py-1 text-xs text-slate-400 flex items-center gap-1">
             <Zap size={10} className="text-indigo-400" /> {f}
           </span>
@@ -133,7 +133,7 @@ export default function Home({ onRandom, onCustom, onLeaderboard, onAdmin }) {
       {/* Round Pills */}
       <motion.div variants={itemVariants} className="mt-10 grid grid-cols-5 gap-2 w-full max-w-xl">
         {[
-          { emoji: '🔤', label: 'Round 1', sub: 'Crossword' },
+          { emoji: '🖼️', label: 'Round 1', sub: 'Images' },
           { emoji: '⚖️', label: 'Round 2', sub: 'This or That' },
           { emoji: '🧩', label: 'Round 3', sub: 'Riddles' },
           { emoji: '📝', label: 'Round 4', sub: 'MCQ' },

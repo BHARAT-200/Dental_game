@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 
 const ROUNDS = [
-  { num: 1, label: 'Crossword', emoji: '🔤' },
+  { num: 1, label: 'Identify Images', emoji: '🖼️' },
   { num: 2, label: 'This or That', emoji: '⚖️' },
   { num: 3, label: 'Riddles', emoji: '🧩' },
   { num: 4, label: 'MCQ', emoji: '📝' },
