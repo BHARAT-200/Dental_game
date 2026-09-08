@@ -1,8 +1,8 @@
 import { motion } from 'framer-motion';
-import { Volume2, VolumeX, Settings, Trophy, Home, Maximize } from 'lucide-react';
+import { Volume2, VolumeX, Home, Maximize } from 'lucide-react';
 import { playSound } from '../utils/sounds';
 
-export default function Navbar({ settings, updateSettings, scores, onHome, onLeaderboard, screen }) {
+export default function Navbar({ settings, updateSettings, scores, onHome }) {
   const toggleSound = () => {
     playSound('click');
     updateSettings({ soundEnabled: !settings.soundEnabled });
@@ -49,9 +49,6 @@ export default function Navbar({ settings, updateSettings, scores, onHome, onLea
         <div className="flex items-center gap-1">
           <NavBtn onClick={onHome} title="Home">
             <Home size={16} />
-          </NavBtn>
-          <NavBtn onClick={onLeaderboard} title="Leaderboard">
-            <Trophy size={16} />
           </NavBtn>
           <NavBtn onClick={toggleSound} title={settings.soundEnabled ? 'Mute' : 'Unmute'}>
             {settings.soundEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}

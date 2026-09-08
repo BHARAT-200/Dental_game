@@ -1,10 +1,10 @@
 import { motion } from 'framer-motion';
 
 const ROUNDS = [
-  { num: 1, label: 'Identify Images', emoji: '🖼️' },
-  { num: 2, label: 'This or That', emoji: '⚖️' },
-  { num: 3, label: 'Riddles', emoji: '🧩' },
-  { num: 4, label: 'MCQ', emoji: '📝' },
+  { num: 1, label: 'Identify Instrument', emoji: '🖼️' },
+  { num: 2, label: 'Function MCQ', emoji: '📝' },
+  { num: 3, label: 'This or That', emoji: '⚖️' },
+  { num: 4, label: 'Riddle', emoji: '🧩' },
   { num: 5, label: 'Rapid Fire', emoji: '⚡' },
 ];
 

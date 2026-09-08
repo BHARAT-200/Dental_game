@@ -15,7 +15,7 @@ const OPTION_COLORS = [
   { base: 'border-pink-500/30', active: 'border-pink-500 bg-pink-500/20', label: 'text-pink-400' },
 ];
 
-export default function Round4MCQ({ questions, onComplete, totalScore }) {
+export default function Round4MCQ({ currentRound = 4, questions, onComplete, totalScore, onQuestionAnswered }) {
   const [current, setCurrent] = useState(0);
   const [selected, setSelected] = useState(null);
   const [roundScore, setRoundScore] = useState(0);
@@ -70,7 +70,7 @@ export default function Round4MCQ({ questions, onComplete, totalScore }) {
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="min-h-screen pt-20 pb-12 px-4">
       <Confetti trigger={confetti} type="standard" />
       <div className="max-w-2xl mx-auto">
-        <ProgressBar currentRound={4} />
+        <ProgressBar currentRound={currentRound} />
 
         <div className="flex items-center justify-between mb-6">
           <div>

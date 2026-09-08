@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Shuffle, PenLine, Trophy, ChevronRight, Zap, Star, ShieldAlert } from 'lucide-react';
+import { Shuffle, PenLine, ChevronRight, Zap, Star } from 'lucide-react';
 import { playSound } from '../utils/sounds';
 import { getBestScore } from '../utils/storage';
 
@@ -16,7 +16,7 @@ const itemVariants = {
   show: { y: 0, opacity: 1, transition: { type: 'spring', stiffness: 100 } },
 };
 
-export default function Home({ onRandom, onCustom, onLeaderboard, onAdmin }) {
+export default function Home({ onRandom, onCustom }) {
   const best = getBestScore();
 
   return (
@@ -89,54 +89,21 @@ export default function Home({ onRandom, onCustom, onLeaderboard, onAdmin }) {
         />
       </motion.div>
 
-      {/* Admin Panel entry */}
-      <motion.div variants={itemVariants} className="w-full max-w-2xl mb-10">
-        <motion.button
-          whileHover={{ scale: 1.02, y: -3 }}
-          whileTap={{ scale: 0.98 }}
-          onClick={() => { playSound('click'); onAdmin(); }}
-          className="w-full text-left p-4 rounded-2xl glass border border-slate-600/40 bg-gradient-to-r from-slate-700/20 to-slate-600/10 hover:border-indigo-500/40 hover:shadow-lg hover:shadow-indigo-500/10 transition-all duration-300 group flex items-center gap-4"
-        >
-          <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center shrink-0 group-hover:bg-indigo-500/20 transition-colors">
-            <ShieldAlert size={18} className="text-indigo-400" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-bold text-slate-300 group-hover:text-white transition-colors">Admin Panel</span>
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-400 font-semibold">Manage Questions</span>
-            </div>
-            <p className="text-xs text-slate-500 mt-0.5">Add, edit or delete questions for all 5 rounds. Changes persist permanently.</p>
-          </div>
-          <ChevronRight size={16} className="text-slate-500 group-hover:text-indigo-400 group-hover:translate-x-1 transition-all shrink-0" />
-        </motion.button>
-      </motion.div>
       <motion.div variants={itemVariants} className="flex flex-wrap justify-center gap-3 mb-10">
-        {['5 Unique Rounds', 'Image ID', 'MCQs', 'Riddles', 'Rapid Fire', 'Leaderboard', 'Confetti'].map(f => (
+        {['5 Unique Rounds', 'Image ID', 'MCQs', 'Riddles', 'Rapid Fire'].map(f => (
           <span key={f} className="glass rounded-full px-3 py-1 text-xs text-slate-400 flex items-center gap-1">
             <Zap size={10} className="text-indigo-400" /> {f}
           </span>
         ))}
       </motion.div>
 
-      {/* Leaderboard Button */}
-      <motion.div variants={itemVariants}>
-        <button
-          onClick={onLeaderboard}
-          className="flex items-center gap-2 text-slate-400 hover:text-indigo-400 transition-colors text-sm"
-        >
-          <Trophy size={16} />
-          View Leaderboard
-          <ChevronRight size={14} />
-        </button>
-      </motion.div>
-
       {/* Round Pills */}
       <motion.div variants={itemVariants} className="mt-10 grid grid-cols-5 gap-2 w-full max-w-xl">
         {[
-          { emoji: '🖼️', label: 'Round 1', sub: 'Images' },
-          { emoji: '⚖️', label: 'Round 2', sub: 'This or That' },
-          { emoji: '🧩', label: 'Round 3', sub: 'Riddles' },
-          { emoji: '📝', label: 'Round 4', sub: 'MCQ' },
+          { emoji: '🖼️', label: 'Round 1', sub: 'Identify' },
+          { emoji: '📝', label: 'Round 2', sub: 'Function' },
+          { emoji: '⚖️', label: 'Round 3', sub: 'This/That' },
+          { emoji: '🧩', label: 'Round 4', sub: 'Riddle' },
           { emoji: '⚡', label: 'Round 5', sub: 'Rapid Fire' },
         ].map((r, i) => (
           <motion.div

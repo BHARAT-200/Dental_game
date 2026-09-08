@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { pickRandom, shuffle } from '../utils/helpers';
+import { shuffle } from '../utils/helpers';
 import {
   imageQuestions,
   thisOrThatQuestions,
@@ -12,7 +12,6 @@ import { getAdminQuestions } from '../utils/storage';
 export const SCREENS = {
   HOME: 'home',
   BUILDER: 'builder',
-  ADMIN: 'admin',
   INSTRUCTIONS: 'instructions',
   ROUND1: 'round1',
   ROUND2: 'round2',
@@ -20,7 +19,6 @@ export const SCREENS = {
   ROUND4: 'round4',
   ROUND5: 'round5',
   RESULT: 'result',
-  LEADERBOARD: 'leaderboard',
 };
 
 const INITIAL_SCORE = {
@@ -67,6 +65,13 @@ export function useGameState() {
   const [customQuestions, setCustomQuestions] = useState(null);
   const [startTime, setStartTime]         = useState(null);
   const [roundResults, setRoundResults]   = useState({});
+  const [enabledRounds, setEnabledRounds] = useState({
+    round1: true,
+    round2: true,
+    round3: true,
+    round4: true,
+    round5: true, // Enable Round 5 (Riddles)
+  });
 
   // ── Start a random game using the admin question bank ────
   const startRandomGame = useCallback(() => {
@@ -76,12 +81,18 @@ export function useGameState() {
     setScores({ ...INITIAL_SCORE });
     setRoundResults({});
     setStartTime(Date.now());
+    // For random game, enable all rounds that have questions
+    setEnabledRounds({
+      round1: q.images?.length > 0,
+      round2: q.mcq?.length > 0,
+      round3: q.thisOrThat?.length > 0,
+      round4: q.riddles?.length > 0,
+      round5: q.rapidFire?.length > 0,
+    });
     setScreen(SCREENS.INSTRUCTIONS);
   }, []);
 
   // ── Start a custom (QuestionBuilder) game ───────────────
-  // The custom game is TEMPORARY — it does NOT affect the
-  // persistent admin bank.
   const startCustomGame = useCallback((custom) => {
     const bank = getAdminQuestions();
 
@@ -117,8 +128,50 @@ export function useGameState() {
     setScores({ ...INITIAL_SCORE });
     setRoundResults({});
     setStartTime(Date.now());
+    // Use the enabled rounds from custom game config
+    setEnabledRounds(custom.enabledRounds || {
+      round1: true,
+      round2: true,
+      round3: true,
+      round4: true,
+      round5: false,
+    });
     setScreen(SCREENS.INSTRUCTIONS);
   }, []);
+
+  const toggleRound = useCallback((round) => {
+    setEnabledRounds(prev => ({ ...prev, [round]: !prev[round] }));
+  }, []);
+
+  const isRoundEnabled = useCallback((round) => {
+    return enabledRounds[round] === true;
+  }, [enabledRounds]);
+
+  const getFirstEnabledRound = useCallback(() => {
+    if (enabledRounds.round1) return SCREENS.ROUND1;
+    if (enabledRounds.round2) return SCREENS.ROUND2;
+    if (enabledRounds.round3) return SCREENS.ROUND3;
+    if (enabledRounds.round4) return SCREENS.ROUND4;
+    if (enabledRounds.round5) return SCREENS.ROUND5;
+    return SCREENS.RESULT;
+  }, [enabledRounds]);
+
+  const getNextEnabledRound = useCallback((currentRound) => {
+    const roundOrder = ['round1', 'round2', 'round3', 'round4', 'round5'];
+    const currentIndex = roundOrder.indexOf(currentRound);
+    
+    for (let i = currentIndex + 1; i < roundOrder.length; i++) {
+      if (enabledRounds[roundOrder[i]]) {
+        return SCREENS[roundOrder[i].toUpperCase()];
+      }
+    }
+    return SCREENS.RESULT;
+  }, [enabledRounds]);
+
+  const proceedToNextRound = useCallback((currentRound) => {
+    const nextScreen = getNextEnabledRound(currentRound);
+    setScreen(nextScreen);
+  }, [getNextEnabledRound]);
 
   const addScore = useCallback((round, points) => {
     setScores(prev => {
@@ -130,6 +183,19 @@ export function useGameState() {
 
   const setRoundResult = useCallback((round, result) => {
     setRoundResults(prev => ({ ...prev, [round]: result }));
+  }, []);
+
+  const addQuestionResult = useCallback((round, questionData) => {
+    setRoundResults(prev => {
+      const existing = prev[round] || { questions: [] };
+      return {
+        ...prev,
+        [round]: {
+          ...existing,
+          questions: [...(existing.questions || []), questionData]
+        }
+      };
+    });
   }, []);
 
   const goToScreen = useCallback((s) => {
@@ -157,9 +223,15 @@ export function useGameState() {
     customQuestions, setCustomQuestions,
     startRandomGame,
     startCustomGame,
-    roundResults, setRoundResult,
+    roundResults, setRoundResult, addQuestionResult,
     resetGame,
     getElapsedTime,
+    enabledRounds,
+    toggleRound,
+    isRoundEnabled,
+    getFirstEnabledRound,
+    getNextEnabledRound,
+    proceedToNextRound,
     SCREENS,
   };
 }

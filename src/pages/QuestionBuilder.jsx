@@ -1,35 +1,45 @@
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, ChevronUp, Plus, Trash2, Play, Home, Download, Upload, Pencil } from 'lucide-react';
-import Button from '../components/Button';
+import { ChevronDown, ChevronUp, Plus, Trash2, Play, Home, Pencil, Check, X } from 'lucide-react';
 import { playSound } from '../utils/sounds';
 import {
   defaultEmojiQuestions,
   defaultFunctionQuestions,
   defaultThisOrThatQuestions,
   defaultRapidFireQuestions,
+  defaultRiddleQuestions,
 } from '../data/customQuestions';
 
-// Memoized option arrays to prevent recreation on every render
-const OPTION_AB = [{ value: 'A', label: 'Option A' }, { value: 'B', label: 'Option B' }];
-const OPTION_ABCD = [0, 1, 2, 3].map(n => ({ value: n, label: `Option ${'ABCD'[n]}` }));
-
 // ──────────────────────────────────────────────────────────
-// Helper: Collapsible Section
+// Helper: Collapsible Round Section with Toggle
 // ──────────────────────────────────────────────────────────
-function Section({ title, emoji, color, defaultOpen = false, children }) {
+function RoundSection({ title, emoji, roundKey, enabled, onToggle, defaultOpen = false, children }) {
   const [open, setOpen] = useState(defaultOpen);
+  
   return (
-    <div className={`glass rounded-2xl border ${color} overflow-hidden mb-4`}>
-      <button
-        onClick={() => { setOpen(o => !o); playSound('click'); }}
-        className="w-full flex items-center justify-between p-4 text-left hover:bg-white/5 transition-colors"
-      >
-        <span className="font-bold text-white flex items-center gap-2 text-lg">
-          <span>{emoji}</span> {title}
-        </span>
-        {open ? <ChevronUp size={18} className="text-slate-400" /> : <ChevronDown size={18} className="text-slate-400" />}
-      </button>
+    <div className={`glass rounded-2xl border ${enabled ? 'border-indigo-500/30' : 'border-slate-600/30'} overflow-hidden mb-4`}>
+      <div className="flex items-center justify-between p-4 border-b border-white/10">
+        <button
+          onClick={() => { setOpen(o => !o); playSound('click'); }}
+          className="flex-1 flex items-center gap-3 text-left"
+        >
+          <span className="text-2xl">{emoji}</span>
+          <div className="flex-1">
+            <div className="font-bold text-white text-lg">{title}</div>
+          </div>
+          {open ? <ChevronUp size={18} className="text-slate-400" /> : <ChevronDown size={18} className="text-slate-400" />}
+        </button>
+        <button
+          onClick={() => { onToggle(roundKey); playSound('click'); }}
+          className={`ml-3 w-12 h-6 rounded-full transition-all ${enabled ? 'bg-indigo-500' : 'bg-slate-600'} relative flex items-center`}
+        >
+          <motion.div
+            animate={{ x: enabled ? 24 : 2 }}
+            className="w-5 h-5 rounded-full bg-white"
+          />
+        </button>
+      </div>
+      
       <AnimatePresence>
         {open && (
           <motion.div
@@ -38,7 +48,14 @@ function Section({ title, emoji, color, defaultOpen = false, children }) {
             exit={{ height: 0 }}
             className="overflow-hidden"
           >
-            <div className="p-4 pt-0 border-t border-white/10">{children}</div>
+            <div className="p-4">
+              {!enabled && (
+                <div className="text-sm text-slate-500 text-center py-8">
+                  This round is disabled. Enable it to configure questions.
+                </div>
+              )}
+              {enabled && children}
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -46,405 +63,1049 @@ function Section({ title, emoji, color, defaultOpen = false, children }) {
   );
 }
 
-function Input({ label, value, onChange, placeholder, type = 'text', className = '' }) {
-  return (
-    <div className={`mb-3 ${className}`}>
-      {label && <label className="block text-xs text-slate-400 mb-1 font-medium">{label}</label>}
-      <input
-        type={type}
-        value={value}
-        onChange={e => onChange(e.target.value)}
-        placeholder={placeholder}
-        className="w-full rounded-xl px-3 py-2 text-sm outline-none"
-      />
-    </div>
-  );
-}
-
-function Select({ label, value, onChange, options }) {
-  return (
-    <div className="mb-3">
-      {label && <label className="block text-xs text-slate-400 mb-1 font-medium">{label}</label>}
-      <select
-        value={value}
-        onChange={e => onChange(e.target.value)}
-        className="w-full rounded-xl px-3 py-2 text-sm outline-none"
-      >
-        {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-      </select>
-    </div>
-  );
-}
-
 // ──────────────────────────────────────────────────────────
-// Round 1: Emoji-based Identification builder
+// Round 1: Emoji/Image Mode Selector + Question Builder
 // ──────────────────────────────────────────────────────────
-function EmojiBuilder({ data, onChange }) {
+function Round1Builder({ data, onChange, mode, onModeChange }) {
   const [editing, setEditing] = useState(null);
-  const [form, setForm] = useState({ emoji: '', answer: '' });
+  const [form, setForm] = useState({ emoji: '', image1: '', image2: '', answer: '' });
   const [confirmDelete, setConfirmDelete] = useState(null);
 
   const add = () => {
-    setForm({ emoji: '', answer: '' });
+    setForm({ emoji: '', image1: '', image2: '', answer: '' });
     setEditing('new');
   };
 
   const startEdit = (i) => {
-    setForm({ emoji: data[i].emoji, answer: data[i].answer });
+    if (mode === 'emoji') {
+      setForm({ emoji: data[i].emoji, answer: data[i].answer, image1: '', image2: '' });
+    } else {
+      setForm({ 
+        emoji: '', 
+        answer: data[i].answer, 
+        image1: data[i].image1 || '', 
+        image2: data[i].image2 || '' 
+      });
+    }
     setEditing(i);
   };
 
   const saveEdit = () => {
-    if (!form.emoji.trim() || !form.answer.trim()) return;
+    if (!form.answer.trim()) return;
     
+    if (mode === 'emoji' && !form.emoji.trim()) return;
+    if (mode === 'image' && (!form.image1.trim() || !form.image2.trim())) return;
+
+    const newQ = mode === 'emoji' 
+      ? { emoji: form.emoji, answer: form.answer }
+      : { image1: form.image1, image2: form.image2, answer: form.answer };
+
     if (editing === 'new') {
-      onChange([...data, { emoji: form.emoji, answer: form.answer }]);
+      onChange([...data, newQ]);
     } else {
-      const updated = [...data];
-      updated[editing] = { emoji: form.emoji, answer: form.answer };
-      onChange(updated);
+      onChange(data.map((q, i) => i === editing ? newQ : q));
     }
     setEditing(null);
-    setForm({ emoji: '', answer: '' });
+    setForm({ emoji: '', image1: '', image2: '', answer: '' });
+    playSound('success');
   };
 
-  const cancelEdit = () => {
-    setEditing(null);
-    setForm({ emoji: '', answer: '' });
-  };
-
-  const remove = (i) => {
+  const deleteQ = (i) => {
     onChange(data.filter((_, idx) => idx !== i));
     setConfirmDelete(null);
+    playSound('click');
   };
 
   return (
     <div>
-      <p className="text-xs text-slate-500 mb-4">Emoji-based identification questions. Students see the emoji clue and type their answer.</p>
-      
+      {/* Mode Selector */}
+      <div className="mb-4 flex gap-2">
+        <button
+          onClick={() => { onModeChange('emoji'); playSound('click'); }}
+          className={`flex-1 px-4 py-2 rounded-xl font-semibold text-sm transition-all ${
+            mode === 'emoji' 
+              ? 'bg-indigo-500 text-white' 
+              : 'bg-slate-700/50 text-slate-400 hover:bg-slate-700'
+          }`}
+        >
+          💉 Emoji Mode
+        </button>
+        <button
+          onClick={() => { onModeChange('image'); playSound('click'); }}
+          className={`flex-1 px-4 py-2 rounded-xl font-semibold text-sm transition-all ${
+            mode === 'image' 
+              ? 'bg-indigo-500 text-white' 
+              : 'bg-slate-700/50 text-slate-400 hover:bg-slate-700'
+          }`}
+        >
+          🖼️ Image Mode
+        </button>
+      </div>
+
+      {/* Question List */}
+      <div className="space-y-2 mb-4">
+        {data.map((q, i) => (
+          <div key={i} className="glass rounded-xl p-3 flex items-center gap-3">
+            <div className="flex-1">
+              {mode === 'emoji' && <div className="text-2xl mb-1">{q.emoji}</div>}
+              {mode === 'image' && <div className="text-xs text-slate-500 mb-1">🖼️ {q.image1} / {q.image2}</div>}
+              <div className="text-sm font-semibold text-white">{q.answer}</div>
+            </div>
+            <button
+              onClick={() => startEdit(i)}
+              className="w-8 h-8 rounded-lg bg-indigo-500/20 hover:bg-indigo-500/30 flex items-center justify-center text-indigo-400 transition-colors"
+            >
+              <Pencil size={14} />
+            </button>
+            <button
+              onClick={() => setConfirmDelete(i)}
+              className="w-8 h-8 rounded-lg bg-red-500/20 hover:bg-red-500/30 flex items-center justify-center text-red-400 transition-colors"
+            >
+              <Trash2 size={14} />
+            </button>
+          </div>
+        ))}
+      </div>
+
       {/* Edit Form */}
       <AnimatePresence>
         {editing !== null && (
           <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className="overflow-hidden mb-4"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="glass rounded-xl p-4 mb-4 border border-indigo-500/30"
           >
-            <div className="glass rounded-xl p-4 border border-indigo-500/40">
-              <p className="text-xs font-bold text-indigo-300 mb-3">
-                {editing === 'new' ? '➕ Add Emoji Question' : '✏️ Edit Question'}
-              </p>
-              <Input 
-                label="Emoji Clue" 
-                placeholder="e.g. 💉💦🦷" 
-                value={form.emoji} 
-                onChange={v => setForm(f => ({ ...f, emoji: v }))} 
+            <div className="text-sm font-semibold text-white mb-3">
+              {editing === 'new' ? 'Add Question' : 'Edit Question'}
+            </div>
+            
+            {mode === 'emoji' && (
+              <input
+                type="text"
+                value={form.emoji}
+                onChange={e => setForm(f => ({ ...f, emoji: e.target.value }))}
+                placeholder="Enter emojis (e.g., 💉💦🦷)"
+                className="w-full rounded-xl px-3 py-2 text-sm outline-none mb-3"
               />
-              <Input 
-                label="Answer" 
-                placeholder="e.g. Irrigation Syringe" 
-                value={form.answer} 
-                onChange={v => setForm(f => ({ ...f, answer: v }))} 
-              />
-              <div className="flex gap-2">
-                <Button variant="success" size="sm" onClick={saveEdit}>Save</Button>
-                <Button variant="secondary" size="sm" onClick={cancelEdit}>Cancel</Button>
-              </div>
+            )}
+            
+            {mode === 'image' && (
+              <>
+                <input
+                  type="text"
+                  value={form.image1}
+                  onChange={e => setForm(f => ({ ...f, image1: e.target.value }))}
+                  placeholder="Image 1 path (e.g., imgq1a.jpg)"
+                  className="w-full rounded-xl px-3 py-2 text-sm outline-none mb-3"
+                />
+                <input
+                  type="text"
+                  value={form.image2}
+                  onChange={e => setForm(f => ({ ...f, image2: e.target.value }))}
+                  placeholder="Image 2 path (e.g., imgq1b.jpg)"
+                  className="w-full rounded-xl px-3 py-2 text-sm outline-none mb-3"
+                />
+              </>
+            )}
+            
+            <input
+              type="text"
+              value={form.answer}
+              onChange={e => setForm(f => ({ ...f, answer: e.target.value }))}
+              placeholder="Answer"
+              className="w-full rounded-xl px-3 py-2 text-sm outline-none mb-3"
+            />
+            
+            <div className="flex gap-2">
+              <button
+                onClick={saveEdit}
+                className="flex-1 px-4 py-2 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white font-semibold text-sm flex items-center justify-center gap-2 transition-colors"
+              >
+                <Check size={16} /> Save
+              </button>
+              <button
+                onClick={() => { setEditing(null); setForm({ emoji: '', image1: '', image2: '', answer: '' }); }}
+                className="px-4 py-2 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-semibold text-sm flex items-center justify-center gap-2 transition-colors"
+              >
+                <X size={16} /> Cancel
+              </button>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
-
-      {/* Question List */}
-      {data.map((q, i) => (
-        <motion.div 
-          key={i} 
-          initial={{ opacity: 0, y: -10 }} 
-          animate={{ opacity: 1, y: 0 }}
-          className="glass rounded-xl p-3 mb-3 border border-white/5 group"
-        >
-          <div className="flex items-start justify-between">
-            <div className="flex-1">
-              <span className="text-xs text-indigo-400 font-bold">Question {i + 1}</span>
-              <div className="text-3xl my-2">{q.emoji}</div>
-              <p className="text-white text-sm">Answer: <span className="font-bold">{q.answer}</span></p>
-            </div>
-            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-              <button 
-                onClick={() => startEdit(i)} 
-                className="w-7 h-7 rounded-lg bg-indigo-500/20 hover:bg-indigo-500/40 flex items-center justify-center text-indigo-300"
-                title="Edit"
-              >
-                <Pencil size={12} />
-              </button>
-              <button 
-                onClick={() => setConfirmDelete(i)} 
-                className="w-7 h-7 rounded-lg bg-red-500/20 hover:bg-red-500/40 flex items-center justify-center text-red-400"
-                title="Delete"
-              >
-                <Trash2 size={12} />
-              </button>
-            </div>
-          </div>
-        </motion.div>
-      ))}
-      
-      {editing === null && (
-        <Button onClick={add} variant="secondary" size="sm" icon={<Plus size={14} />}>
-          Add Emoji Question
-        </Button>
-      )}
 
       {/* Delete Confirmation */}
       <AnimatePresence>
         {confirmDelete !== null && (
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4"
-            onClick={() => setConfirmDelete(null)}
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="glass rounded-xl p-4 mb-4 border border-red-500/30"
           >
-            <motion.div
-              initial={{ scale: 0.9 }}
-              animate={{ scale: 1 }}
-              exit={{ scale: 0.9 }}
-              onClick={(e) => e.stopPropagation()}
-              className="glass rounded-2xl p-6 max-w-sm w-full border border-red-500/30"
-            >
-              <p className="text-white text-sm mb-4">Are you sure you want to delete this question?</p>
-              <div className="flex gap-2 justify-end">
-                <Button variant="secondary" size="sm" onClick={() => setConfirmDelete(null)}>Cancel</Button>
-                <Button variant="danger" size="sm" onClick={() => remove(confirmDelete)}>Delete</Button>
-              </div>
-            </motion.div>
+            <div className="text-sm text-white mb-3">Delete this question?</div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => deleteQ(confirmDelete)}
+                className="flex-1 px-4 py-2 rounded-xl bg-red-500 hover:bg-red-600 text-white font-semibold text-sm transition-colors"
+              >
+                Delete
+              </button>
+              <button
+                onClick={() => setConfirmDelete(null)}
+                className="px-4 py-2 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-semibold text-sm transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Add Button */}
+      <button
+        onClick={add}
+        className="w-full px-4 py-3 rounded-xl border-2 border-dashed border-slate-600 hover:border-indigo-500 text-slate-400 hover:text-indigo-400 font-semibold text-sm flex items-center justify-center gap-2 transition-all"
+      >
+        <Plus size={16} /> Add Question
+      </button>
     </div>
   );
 }
 
 // ──────────────────────────────────────────────────────────
-// Round 2: MCQ with 4 options builder
+// Round 2: Function MCQ Builder
 // ──────────────────────────────────────────────────────────
-function FunctionMCQBuilder({ data, onChange }) {
-  const add = () => onChange([...data, { question: '', options: ['', '', '', ''], correct: 0, explanation: '' }]);
-  const remove = i => onChange(data.filter((_, idx) => idx !== i));
-  const update = (i, field, val) => {
-    const updated = [...data];
-    updated[i] = { ...updated[i], [field]: val };
-    onChange(updated);
+function Round2Builder({ data, onChange }) {
+  const [editing, setEditing] = useState(null);
+  const [form, setForm] = useState({ question: '', options: ['', '', '', ''], correct: 0 });
+  const [confirmDelete, setConfirmDelete] = useState(null);
+
+  const add = () => {
+    setForm({ question: '', options: ['', '', '', ''], correct: 0 });
+    setEditing('new');
   };
-  const updateOption = (i, optIdx, val) => {
-    const updated = [...data];
-    updated[i].options[optIdx] = val;
-    onChange(updated);
+
+  const startEdit = (i) => {
+    setForm({
+      question: data[i].question,
+      options: [...data[i].options],
+      correct: data[i].correct,
+    });
+    setEditing(i);
+  };
+
+  const saveEdit = () => {
+    if (!form.question.trim() || form.options.some(o => !o.trim())) return;
+
+    const newQ = {
+      question: form.question,
+      options: form.options,
+      correct: form.correct,
+      explanation: '',
+    };
+
+    if (editing === 'new') {
+      onChange([...data, newQ]);
+    } else {
+      onChange(data.map((q, i) => i === editing ? newQ : q));
+    }
+    setEditing(null);
+    setForm({ question: '', options: ['', '', '', ''], correct: 0 });
+    playSound('success');
+  };
+
+  const deleteQ = (i) => {
+    onChange(data.filter((_, idx) => idx !== i));
+    setConfirmDelete(null);
+    playSound('click');
   };
 
   return (
     <div>
-      <p className="text-xs text-slate-500 mb-4">Multiple choice questions with 4 options.</p>
-      {data.map((q, i) => (
-        <motion.div key={i} initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
-          className="glass rounded-xl p-3 mb-3 border border-white/5">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs text-purple-400 font-bold">Question {i + 1}</span>
-            <button onClick={() => remove(i)} className="text-red-400 hover:text-red-300"><Trash2 size={14} /></button>
+      {/* Question List */}
+      <div className="space-y-2 mb-4">
+        {data.map((q, i) => (
+          <div key={i} className="glass rounded-xl p-3">
+            <div className="flex items-start gap-3 mb-2">
+              <div className="flex-1">
+                <div className="text-sm font-semibold text-white mb-2">{q.question}</div>
+                <div className="text-xs text-green-400">✓ {q.options[q.correct]}</div>
+              </div>
+              <button
+                onClick={() => startEdit(i)}
+                className="w-8 h-8 rounded-lg bg-indigo-500/20 hover:bg-indigo-500/30 flex items-center justify-center text-indigo-400 transition-colors"
+              >
+                <Pencil size={14} />
+              </button>
+              <button
+                onClick={() => setConfirmDelete(i)}
+                className="w-8 h-8 rounded-lg bg-red-500/20 hover:bg-red-500/30 flex items-center justify-center text-red-400 transition-colors"
+              >
+                <Trash2 size={14} />
+              </button>
+            </div>
           </div>
-          <Input placeholder="Question" value={q.question} onChange={v => update(i, 'question', v)} />
-          <div className="grid grid-cols-2 gap-2">
-            {['A', 'B', 'C', 'D'].map((l, oi) => (
-              <Input key={oi} placeholder={`Option ${l}`} value={q.options[oi]} onChange={v => updateOption(i, oi, v)} />
+        ))}
+      </div>
+
+      {/* Edit Form */}
+      <AnimatePresence>
+        {editing !== null && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="glass rounded-xl p-4 mb-4 border border-indigo-500/30"
+          >
+            <div className="text-sm font-semibold text-white mb-3">
+              {editing === 'new' ? 'Add Question' : 'Edit Question'}
+            </div>
+            
+            <textarea
+              value={form.question}
+              onChange={e => setForm(f => ({ ...f, question: e.target.value }))}
+              placeholder="Question"
+              className="w-full rounded-xl px-3 py-2 text-sm outline-none mb-3 h-20 resize-none"
+            />
+            
+            {form.options.map((opt, i) => (
+              <div key={i} className="flex gap-2 mb-2">
+                <input
+                  type="text"
+                  value={opt}
+                  onChange={e => {
+                    const newOpts = [...form.options];
+                    newOpts[i] = e.target.value;
+                    setForm(f => ({ ...f, options: newOpts }));
+                  }}
+                  placeholder={`Option ${'ABCD'[i]}`}
+                  className="flex-1 rounded-xl px-3 py-2 text-sm outline-none"
+                />
+                <button
+                  onClick={() => setForm(f => ({ ...f, correct: i }))}
+                  className={`w-10 h-10 rounded-xl font-semibold text-sm transition-all ${
+                    form.correct === i 
+                      ? 'bg-green-500 text-white' 
+                      : 'bg-slate-700 text-slate-400 hover:bg-slate-600'
+                  }`}
+                >
+                  {form.correct === i ? '✓' : 'ABCD'[i]}
+                </button>
+              </div>
             ))}
-          </div>
-          <Select label="Correct Option" value={q.correct} onChange={v => update(i, 'correct', parseInt(v))}
-            options={OPTION_ABCD} />
-          <Input placeholder="Explanation (optional)" value={q.explanation} onChange={v => update(i, 'explanation', v)} />
-        </motion.div>
-      ))}
-      <Button onClick={add} variant="secondary" size="sm" icon={<Plus size={14} />}>Add Question</Button>
+            
+            <div className="flex gap-2 mt-3">
+              <button
+                onClick={saveEdit}
+                className="flex-1 px-4 py-2 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white font-semibold text-sm flex items-center justify-center gap-2 transition-colors"
+              >
+                <Check size={16} /> Save
+              </button>
+              <button
+                onClick={() => { setEditing(null); setForm({ question: '', options: ['', '', '', ''], correct: 0 }); }}
+                className="px-4 py-2 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-semibold text-sm flex items-center justify-center gap-2 transition-colors"
+              >
+                <X size={16} /> Cancel
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Delete Confirmation */}
+      <AnimatePresence>
+        {confirmDelete !== null && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="glass rounded-xl p-4 mb-4 border border-red-500/30"
+          >
+            <div className="text-sm text-white mb-3">Delete this question?</div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => deleteQ(confirmDelete)}
+                className="flex-1 px-4 py-2 rounded-xl bg-red-500 hover:bg-red-600 text-white font-semibold text-sm transition-colors"
+              >
+                Delete
+              </button>
+              <button
+                onClick={() => setConfirmDelete(null)}
+                className="px-4 py-2 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-semibold text-sm transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Add Button */}
+      <button
+        onClick={add}
+        className="w-full px-4 py-3 rounded-xl border-2 border-dashed border-slate-600 hover:border-indigo-500 text-slate-400 hover:text-indigo-400 font-semibold text-sm flex items-center justify-center gap-2 transition-all"
+      >
+        <Plus size={16} /> Add Question
+      </button>
     </div>
   );
 }
 
 // ──────────────────────────────────────────────────────────
-// Round 3: This or That builder (2 options)
+// Round 3: This or That Builder
 // ──────────────────────────────────────────────────────────
-function ThisOrThatBuilder({ data, onChange }) {
-  const add = () => onChange([...data, { question: '', optionA: '', optionB: '', correct: 'A', explanation: '' }]);
-  const remove = i => onChange(data.filter((_, idx) => idx !== i));
-  const update = (i, field, val) => {
-    const updated = [...data];
-    updated[i] = { ...updated[i], [field]: val };
-    onChange(updated);
+function Round3Builder({ data, onChange }) {
+  const [editing, setEditing] = useState(null);
+  const [form, setForm] = useState({ question: '', optionA: '', optionB: '', correct: 'A' });
+  const [confirmDelete, setConfirmDelete] = useState(null);
+
+  const add = () => {
+    setForm({ question: '', optionA: '', optionB: '', correct: 'A' });
+    setEditing('new');
+  };
+
+  const startEdit = (i) => {
+    setForm({
+      question: data[i].question,
+      optionA: data[i].optionA,
+      optionB: data[i].optionB,
+      correct: data[i].correct,
+    });
+    setEditing(i);
+  };
+
+  const saveEdit = () => {
+    if (!form.question.trim() || !form.optionA.trim() || !form.optionB.trim()) return;
+
+    const newQ = {
+      question: form.question,
+      optionA: form.optionA,
+      optionB: form.optionB,
+      correct: form.correct,
+      explanation: '',
+    };
+
+    if (editing === 'new') {
+      onChange([...data, newQ]);
+    } else {
+      onChange(data.map((q, i) => i === editing ? newQ : q));
+    }
+    setEditing(null);
+    setForm({ question: '', optionA: '', optionB: '', correct: 'A' });
+    playSound('success');
+  };
+
+  const deleteQ = (i) => {
+    onChange(data.filter((_, idx) => idx !== i));
+    setConfirmDelete(null);
+    playSound('click');
   };
 
   return (
     <div>
-      <p className="text-xs text-slate-500 mb-4">This or That questions with 2 options.</p>
-      {data.map((q, i) => (
-        <motion.div key={i} initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
-          className="glass rounded-xl p-3 mb-3 border border-white/5">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs text-cyan-400 font-bold">Question {i + 1}</span>
-            <button onClick={() => remove(i)} className="text-red-400 hover:text-red-300"><Trash2 size={14} /></button>
+      {/* Question List */}
+      <div className="space-y-2 mb-4">
+        {data.map((q, i) => (
+          <div key={i} className="glass rounded-xl p-3">
+            <div className="flex items-start gap-3">
+              <div className="flex-1">
+                <div className="text-sm font-semibold text-white mb-2">{q.question}</div>
+                <div className="text-xs text-slate-400 mb-1">A: {q.optionA} | B: {q.optionB}</div>
+                <div className="text-xs text-green-400">✓ {q.correct === 'A' ? q.optionA : q.optionB}</div>
+              </div>
+              <button
+                onClick={() => startEdit(i)}
+                className="w-8 h-8 rounded-lg bg-indigo-500/20 hover:bg-indigo-500/30 flex items-center justify-center text-indigo-400 transition-colors"
+              >
+                <Pencil size={14} />
+              </button>
+              <button
+                onClick={() => setConfirmDelete(i)}
+                className="w-8 h-8 rounded-lg bg-red-500/20 hover:bg-red-500/30 flex items-center justify-center text-red-400 transition-colors"
+              >
+                <Trash2 size={14} />
+              </button>
+            </div>
           </div>
-          <Input placeholder="Question" value={q.question} onChange={v => update(i, 'question', v)} />
-          <div className="grid grid-cols-2 gap-2">
-            <Input placeholder="Option A" value={q.optionA} onChange={v => update(i, 'optionA', v)} />
-            <Input placeholder="Option B" value={q.optionB} onChange={v => update(i, 'optionB', v)} />
-          </div>
-          <Select label="Correct Answer" value={q.correct} onChange={v => update(i, 'correct', v)}
-            options={OPTION_AB} />
-          <Input placeholder="Explanation (optional)" value={q.explanation} onChange={v => update(i, 'explanation', v)} />
-        </motion.div>
-      ))}
-      <Button onClick={add} variant="secondary" size="sm" icon={<Plus size={14} />}>Add Question</Button>
+        ))}
+      </div>
+
+      {/* Edit Form */}
+      <AnimatePresence>
+        {editing !== null && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="glass rounded-xl p-4 mb-4 border border-indigo-500/30"
+          >
+            <div className="text-sm font-semibold text-white mb-3">
+              {editing === 'new' ? 'Add Question' : 'Edit Question'}
+            </div>
+            
+            <textarea
+              value={form.question}
+              onChange={e => setForm(f => ({ ...f, question: e.target.value }))}
+              placeholder="Question"
+              className="w-full rounded-xl px-3 py-2 text-sm outline-none mb-3 h-20 resize-none"
+            />
+            
+            <div className="flex gap-2 mb-2">
+              <input
+                type="text"
+                value={form.optionA}
+                onChange={e => setForm(f => ({ ...f, optionA: e.target.value }))}
+                placeholder="Option A"
+                className="flex-1 rounded-xl px-3 py-2 text-sm outline-none"
+              />
+              <button
+                onClick={() => setForm(f => ({ ...f, correct: 'A' }))}
+                className={`w-10 h-10 rounded-xl font-semibold text-sm transition-all ${
+                  form.correct === 'A' 
+                    ? 'bg-green-500 text-white' 
+                    : 'bg-slate-700 text-slate-400 hover:bg-slate-600'
+                }`}
+              >
+                {form.correct === 'A' ? '✓' : 'A'}
+              </button>
+            </div>
+            
+            <div className="flex gap-2 mb-3">
+              <input
+                type="text"
+                value={form.optionB}
+                onChange={e => setForm(f => ({ ...f, optionB: e.target.value }))}
+                placeholder="Option B"
+                className="flex-1 rounded-xl px-3 py-2 text-sm outline-none"
+              />
+              <button
+                onClick={() => setForm(f => ({ ...f, correct: 'B' }))}
+                className={`w-10 h-10 rounded-xl font-semibold text-sm transition-all ${
+                  form.correct === 'B' 
+                    ? 'bg-green-500 text-white' 
+                    : 'bg-slate-700 text-slate-400 hover:bg-slate-600'
+                }`}
+              >
+                {form.correct === 'B' ? '✓' : 'B'}
+              </button>
+            </div>
+            
+            <div className="flex gap-2">
+              <button
+                onClick={saveEdit}
+                className="flex-1 px-4 py-2 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white font-semibold text-sm flex items-center justify-center gap-2 transition-colors"
+              >
+                <Check size={16} /> Save
+              </button>
+              <button
+                onClick={() => { setEditing(null); setForm({ question: '', optionA: '', optionB: '', correct: 'A' }); }}
+                className="px-4 py-2 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-semibold text-sm flex items-center justify-center gap-2 transition-colors"
+              >
+                <X size={16} /> Cancel
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Delete Confirmation */}
+      <AnimatePresence>
+        {confirmDelete !== null && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="glass rounded-xl p-4 mb-4 border border-red-500/30"
+          >
+            <div className="text-sm text-white mb-3">Delete this question?</div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => deleteQ(confirmDelete)}
+                className="flex-1 px-4 py-2 rounded-xl bg-red-500 hover:bg-red-600 text-white font-semibold text-sm transition-colors"
+              >
+                Delete
+              </button>
+              <button
+                onClick={() => setConfirmDelete(null)}
+                className="px-4 py-2 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-semibold text-sm transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Add Button */}
+      <button
+        onClick={add}
+        className="w-full px-4 py-3 rounded-xl border-2 border-dashed border-slate-600 hover:border-indigo-500 text-slate-400 hover:text-indigo-400 font-semibold text-sm flex items-center justify-center gap-2 transition-all"
+      >
+        <Plus size={16} /> Add Question
+      </button>
     </div>
   );
 }
 
-
-
 // ──────────────────────────────────────────────────────────
-// Round 5: Rapid Fire builder
+// Round 4: Rapid Fire Builder
 // ──────────────────────────────────────────────────────────
-function RapidFireBuilder({ data, onChange }) {
-  const add = () => onChange([...data, { question: '', answer: '', timeLimit: 10 }]);
-  const remove = i => onChange(data.filter((_, idx) => idx !== i));
-  const update = (i, field, val) => {
-    const updated = [...data];
-    updated[i] = { ...updated[i], [field]: val };
-    onChange(updated);
+function Round4Builder({ data, onChange }) {
+  const [editing, setEditing] = useState(null);
+  const [form, setForm] = useState({ question: '', answer: '' });
+  const [confirmDelete, setConfirmDelete] = useState(null);
+
+  const add = () => {
+    setForm({ question: '', answer: '' });
+    setEditing('new');
+  };
+
+  const startEdit = (i) => {
+    setForm({ question: data[i].question, answer: data[i].answer });
+    setEditing(i);
+  };
+
+  const saveEdit = () => {
+    if (!form.question.trim() || !form.answer.trim()) return;
+
+    const newQ = {
+      question: form.question,
+      answer: form.answer,
+      timeLimit: 10,
+    };
+
+    if (editing === 'new') {
+      onChange([...data, newQ]);
+    } else {
+      onChange(data.map((q, i) => i === editing ? newQ : q));
+    }
+    setEditing(null);
+    setForm({ question: '', answer: '' });
+    playSound('success');
+  };
+
+  const deleteQ = (i) => {
+    onChange(data.filter((_, idx) => idx !== i));
+    setConfirmDelete(null);
+    playSound('click');
   };
 
   return (
     <div>
-      {data.map((q, i) => (
-        <motion.div key={i} initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
-          className="glass rounded-xl p-3 mb-3 border border-white/5">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs text-yellow-400 font-bold">Q{i + 1}</span>
-            <button onClick={() => remove(i)} className="text-red-400 hover:text-red-300"><Trash2 size={14} /></button>
+      {/* Question List */}
+      <div className="space-y-2 mb-4">
+        {data.map((q, i) => (
+          <div key={i} className="glass rounded-xl p-3">
+            <div className="flex items-start gap-3">
+              <div className="flex-1">
+                <div className="text-sm font-semibold text-white mb-1">{q.question}</div>
+                <div className="text-xs text-green-400">✓ {q.answer}</div>
+              </div>
+              <button
+                onClick={() => startEdit(i)}
+                className="w-8 h-8 rounded-lg bg-indigo-500/20 hover:bg-indigo-500/30 flex items-center justify-center text-indigo-400 transition-colors"
+              >
+                <Pencil size={14} />
+              </button>
+              <button
+                onClick={() => setConfirmDelete(i)}
+                className="w-8 h-8 rounded-lg bg-red-500/20 hover:bg-red-500/30 flex items-center justify-center text-red-400 transition-colors"
+              >
+                <Trash2 size={14} />
+              </button>
+            </div>
           </div>
-          <div className="grid grid-cols-3 gap-2">
-            <Input placeholder="Question" value={q.question} onChange={v => update(i, 'question', v)} className="col-span-2" />
-            <Input placeholder="Time (s)" value={q.timeLimit} type="number" onChange={v => update(i, 'timeLimit', parseInt(v) || 10)} />
-          </div>
-          <Input placeholder="Answer" value={q.answer} onChange={v => update(i, 'answer', v)} />
-        </motion.div>
-      ))}
-      <Button onClick={add} variant="secondary" size="sm" icon={<Plus size={14} />}>Add Question</Button>
+        ))}
+      </div>
+
+      {/* Edit Form */}
+      <AnimatePresence>
+        {editing !== null && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="glass rounded-xl p-4 mb-4 border border-indigo-500/30"
+          >
+            <div className="text-sm font-semibold text-white mb-3">
+              {editing === 'new' ? 'Add Question' : 'Edit Question'}
+            </div>
+            
+            <textarea
+              value={form.question}
+              onChange={e => setForm(f => ({ ...f, question: e.target.value }))}
+              placeholder="Question"
+              className="w-full rounded-xl px-3 py-2 text-sm outline-none mb-3 h-20 resize-none"
+            />
+            
+            <input
+              type="text"
+              value={form.answer}
+              onChange={e => setForm(f => ({ ...f, answer: e.target.value }))}
+              placeholder="Answer"
+              className="w-full rounded-xl px-3 py-2 text-sm outline-none mb-3"
+            />
+            
+            <div className="flex gap-2">
+              <button
+                onClick={saveEdit}
+                className="flex-1 px-4 py-2 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white font-semibold text-sm flex items-center justify-center gap-2 transition-colors"
+              >
+                <Check size={16} /> Save
+              </button>
+              <button
+                onClick={() => { setEditing(null); setForm({ question: '', answer: '' }); }}
+                className="px-4 py-2 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-semibold text-sm flex items-center justify-center gap-2 transition-colors"
+              >
+                <X size={16} /> Cancel
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Delete Confirmation */}
+      <AnimatePresence>
+        {confirmDelete !== null && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="glass rounded-xl p-4 mb-4 border border-red-500/30"
+          >
+            <div className="text-sm text-white mb-3">Delete this question?</div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => deleteQ(confirmDelete)}
+                className="flex-1 px-4 py-2 rounded-xl bg-red-500 hover:bg-red-600 text-white font-semibold text-sm transition-colors"
+              >
+                Delete
+              </button>
+              <button
+                onClick={() => setConfirmDelete(null)}
+                className="px-4 py-2 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-semibold text-sm transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Add Button */}
+      <button
+        onClick={add}
+        className="w-full px-4 py-3 rounded-xl border-2 border-dashed border-slate-600 hover:border-indigo-500 text-slate-400 hover:text-indigo-400 font-semibold text-sm flex items-center justify-center gap-2 transition-all"
+      >
+        <Plus size={16} /> Add Question
+      </button>
     </div>
   );
 }
 
 // ──────────────────────────────────────────────────────────
-// Main Builder Page
+// Round 5: Riddle Builder
+// ──────────────────────────────────────────────────────────
+function Round5Builder({ data, onChange }) {
+  const [editing, setEditing] = useState(null);
+  const [form, setForm] = useState({ riddle: '', answer: '', hint: '' });
+  const [confirmDelete, setConfirmDelete] = useState(null);
+
+  const add = () => {
+    setForm({ riddle: '', answer: '', hint: '' });
+    setEditing('new');
+  };
+
+  const startEdit = (i) => {
+    setForm({ riddle: data[i].riddle, answer: data[i].answer, hint: data[i].hint || '' });
+    setEditing(i);
+  };
+
+  const saveEdit = () => {
+    if (!form.riddle.trim() || !form.answer.trim()) return;
+
+    const newQ = {
+      riddle: form.riddle,
+      answer: form.answer,
+      hint: form.hint || '',
+    };
+
+    if (editing === 'new') {
+      onChange([...data, newQ]);
+    } else {
+      onChange(data.map((q, i) => i === editing ? newQ : q));
+    }
+    setEditing(null);
+    setForm({ riddle: '', answer: '', hint: '' });
+    playSound('success');
+  };
+
+  const deleteQ = (i) => {
+    onChange(data.filter((_, idx) => idx !== i));
+    setConfirmDelete(null);
+    playSound('click');
+  };
+
+  return (
+    <div>
+      {/* Question List */}
+      <div className="space-y-2 mb-4">
+        {data.map((q, i) => (
+          <div key={i} className="glass rounded-xl p-3">
+            <div className="flex items-start gap-3">
+              <div className="flex-1">
+                <div className="text-sm font-semibold text-white mb-1">{q.riddle}</div>
+                <div className="text-xs text-green-400">✓ {q.answer}</div>
+                {q.hint && <div className="text-xs text-slate-500 mt-1">💡 {q.hint}</div>}
+              </div>
+              <button
+                onClick={() => startEdit(i)}
+                className="w-8 h-8 rounded-lg bg-indigo-500/20 hover:bg-indigo-500/30 flex items-center justify-center text-indigo-400 transition-colors"
+              >
+                <Pencil size={14} />
+              </button>
+              <button
+                onClick={() => setConfirmDelete(i)}
+                className="w-8 h-8 rounded-lg bg-red-500/20 hover:bg-red-500/30 flex items-center justify-center text-red-400 transition-colors"
+              >
+                <Trash2 size={14} />
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Edit Form */}
+      <AnimatePresence>
+        {editing !== null && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="glass rounded-xl p-4 mb-4 border border-indigo-500/30"
+          >
+            <div className="text-sm font-semibold text-white mb-3">
+              {editing === 'new' ? 'Add Riddle' : 'Edit Riddle'}
+            </div>
+            
+            <textarea
+              value={form.riddle}
+              onChange={e => setForm(f => ({ ...f, riddle: e.target.value }))}
+              placeholder="Riddle (e.g., I protect the crown but I'm not a king...)"
+              className="w-full rounded-xl px-3 py-2 text-sm outline-none mb-3 h-20 resize-none"
+            />
+            
+            <input
+              type="text"
+              value={form.answer}
+              onChange={e => setForm(f => ({ ...f, answer: e.target.value }))}
+              placeholder="Answer"
+              className="w-full rounded-xl px-3 py-2 text-sm outline-none mb-3"
+            />
+            
+            <input
+              type="text"
+              value={form.hint}
+              onChange={e => setForm(f => ({ ...f, hint: e.target.value }))}
+              placeholder="Hint (optional)"
+              className="w-full rounded-xl px-3 py-2 text-sm outline-none mb-3"
+            />
+            
+            <div className="flex gap-2">
+              <button
+                onClick={saveEdit}
+                className="flex-1 px-4 py-2 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white font-semibold text-sm flex items-center justify-center gap-2 transition-colors"
+              >
+                <Check size={16} /> Save
+              </button>
+              <button
+                onClick={() => { setEditing(null); setForm({ riddle: '', answer: '', hint: '' }); }}
+                className="px-4 py-2 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-semibold text-sm flex items-center justify-center gap-2 transition-colors"
+              >
+                <X size={16} /> Cancel
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Delete Confirmation */}
+      <AnimatePresence>
+        {confirmDelete !== null && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="glass rounded-xl p-4 mb-4 border border-red-500/30"
+          >
+            <div className="text-sm text-white mb-3">Delete this riddle?</div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => deleteQ(confirmDelete)}
+                className="flex-1 px-4 py-2 rounded-xl bg-red-500 hover:bg-red-600 text-white font-semibold text-sm transition-colors"
+              >
+                Delete
+              </button>
+              <button
+                onClick={() => setConfirmDelete(null)}
+                className="px-4 py-2 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-semibold text-sm transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Add Button */}
+      <button
+        onClick={add}
+        className="w-full px-4 py-3 rounded-xl border-2 border-dashed border-slate-600 hover:border-indigo-500 text-slate-400 hover:text-indigo-400 font-semibold text-sm flex items-center justify-center gap-2 transition-all"
+      >
+        <Plus size={16} /> Add Riddle
+      </button>
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────
+// Main Question Builder Component
 // ──────────────────────────────────────────────────────────
 export default function QuestionBuilder({ onStart, onHome }) {
-  // Initialize with preloaded Endodontic Champion questions
-  const [emojiQuestions, setEmojiQuestions] = useState(() => [...defaultEmojiQuestions]);
-  const [functionMCQ, setFunctionMCQ] = useState(() => [...defaultFunctionQuestions]);
-  const [thisOrThat, setThisOrThat] = useState(() => [...defaultThisOrThatQuestions]);
-  const [rapidFire, setRapidFire] = useState(() => [...defaultRapidFireQuestions]);
+  // Round enabled/disabled states
+  const [enabledRounds, setEnabledRounds] = useState({
+    round1: true,
+    round2: true,
+    round3: true,
+    round4: true,
+    round5: true, // Enable Round 5 (Riddles)
+  });
+
+  // Round 1 mode: emoji or image
+  const [round1Mode, setRound1Mode] = useState('emoji');
+
+  // Question data for each round (preloaded with Endodontic Champion questions)
+  const [round1Questions, setRound1Questions] = useState([...defaultEmojiQuestions]);
+  const [round2Questions, setRound2Questions] = useState([...defaultFunctionQuestions]);
+  const [round3Questions, setRound3Questions] = useState([...defaultThisOrThatQuestions]);
+  const [round4Questions, setRound4Questions] = useState([...defaultRiddleQuestions]); // Round 4 is Riddles
+  const [round5Questions, setRound5Questions] = useState([...defaultRapidFireQuestions]); // Round 5 is Rapid Fire
+
+  const toggleRound = (roundKey) => {
+    setEnabledRounds(prev => ({ ...prev, [roundKey]: !prev[roundKey] }));
+  };
 
   const handleStart = () => {
-    // Pass emoji questions as 'images' to maintain compatibility with game flow
-    onStart({ 
-      images: emojiQuestions,  // Emoji-based questions for Round 1
-      mcq: functionMCQ,        // Function MCQ for Round 2
-      thisOrThat,              // This or That for Round 3
-      riddles: [],             // Empty - Round 4 uses Rapid Fire instead
-      rapidFire,               // Rapid Fire for Round 4 (not Round 5)
-    });
-  };
+    // Validation: at least one round must be enabled
+    const anyEnabled = Object.values(enabledRounds).some(v => v);
+    if (!anyEnabled) {
+      alert('Please enable at least one round before starting.');
+      playSound('error');
+      return;
+    }
 
-  const exportJSON = () => {
-    const data = { emojiQuestions, functionMCQ, thisOrThat, rapidFire };
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href = url; a.download = 'endodontic-custom.json'; a.click();
-  };
-
-  const importJSON = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      try {
-        const data = JSON.parse(ev.target.result);
-        if (data.emojiQuestions) setEmojiQuestions(data.emojiQuestions);
-        if (data.functionMCQ) setFunctionMCQ(data.functionMCQ);
-        if (data.thisOrThat) setThisOrThat(data.thisOrThat);
-        if (data.rapidFire) setRapidFire(data.rapidFire);
-      } catch { alert('Invalid JSON file'); }
+    // Build the custom question set
+    const custom = {
+      images: round1Mode === 'emoji' 
+        ? round1Questions.map(q => ({ emoji: q.emoji, answer: q.answer }))
+        : round1Questions.map(q => ({ image1: q.image1, image2: q.image2, answer: q.answer })),
+      mcq: round2Questions, // Round 2 is MCQ
+      thisOrThat: round3Questions, // Round 3 is This or That
+      riddles: round4Questions, // Round 4 is Riddles
+      rapidFire: round5Questions, // Round 5 is Rapid Fire
+      enabledRounds,
     };
-    reader.readAsText(file);
-  };
 
-  const totalQ = emojiQuestions.length + functionMCQ.length + thisOrThat.length + rapidFire.length;
+    playSound('start');
+    onStart(custom);
+  };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 30 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="min-h-screen pt-20 pb-12 px-4"
-    >
+    <div className="min-h-screen pt-20 pb-12 px-4">
       <div className="max-w-3xl mx-auto">
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h2 className="text-4xl font-black gradient-text">✏️ Custom Game Builder</h2>
-            <p className="text-slate-400 text-sm">Endodontic Champion — Pre-loaded with endodontic instrument questions. Edit, delete, or add more.</p>
-          </div>
-          <Button onClick={onHome} variant="secondary" size="sm" icon={<Home size={14} />}>Home</Button>
+        <div className="text-center mb-8">
+          <h1 className="text-4xl font-black mb-2">
+            <span className="gradient-text">Custom Game</span>
+          </h1>
+          <p className="text-slate-400">Configure your quiz rounds and questions</p>
         </div>
 
-        {/* Import/Export */}
-        <div className="flex gap-3 mb-6">
-          <Button onClick={exportJSON} variant="secondary" size="sm" icon={<Download size={14} />}>Export JSON</Button>
-          <label className="cursor-pointer">
-            <input type="file" accept=".json" onChange={importJSON} className="hidden" />
-            <span className="flex items-center gap-2 glass glass-hover border border-white/10 rounded-xl px-4 py-2 text-sm font-semibold text-slate-300 hover:text-white transition-colors cursor-pointer">
-              <Upload size={14} /> Import JSON
-            </span>
-          </label>
-        </div>
-
-        {/* Sections */}
-        <Section title="Round 1 – Identify the Instrument Through Emojis" emoji="🖼️" color="border-indigo-500/30" defaultOpen>
-          <EmojiBuilder data={emojiQuestions} onChange={setEmojiQuestions} />
-        </Section>
-        <Section title="Round 2 – Identify the Instrument Through Function" emoji="⚖️" color="border-purple-500/30">
-          <FunctionMCQBuilder data={functionMCQ} onChange={setFunctionMCQ} />
-        </Section>
-        <Section title="Round 3 – This or That" emoji="🧩" color="border-cyan-500/30">
-          <ThisOrThatBuilder data={thisOrThat} onChange={setThisOrThat} />
-        </Section>
-        <Section title="Round 4 – Rapid Fire" emoji="⚡" color="border-green-500/30">
-          <RapidFireBuilder data={rapidFire} onChange={setRapidFire} />
-        </Section>
-
-        {/* Start */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.5 }}
-          className="sticky bottom-4 mt-6"
+        {/* Round Sections */}
+        <RoundSection
+          title="Round 1 — Identify the Instrument"
+          emoji="🖼️"
+          roundKey="round1"
+          enabled={enabledRounds.round1}
+          onToggle={toggleRound}
+          defaultOpen={true}
         >
-          <div className="glass rounded-2xl p-4 flex items-center justify-between border border-indigo-500/30">
-            <div className="text-sm text-slate-400">
-              <span className="text-white font-bold">{totalQ}</span> questions loaded · Round 5 will use admin bank
-            </div>
-            <Button onClick={handleStart} variant="gradient" size="md" icon={<Play size={16} />} sound="start">
-              Start Game
-            </Button>
-          </div>
-        </motion.div>
+          <Round1Builder
+            data={round1Questions}
+            onChange={setRound1Questions}
+            mode={round1Mode}
+            onModeChange={setRound1Mode}
+          />
+        </RoundSection>
+
+        <RoundSection
+          title="Round 2 — Identify Through Function (MCQ)"
+          emoji="📝"
+          roundKey="round2"
+          enabled={enabledRounds.round2}
+          onToggle={toggleRound}
+        >
+          <Round2Builder data={round2Questions} onChange={setRound2Questions} />
+        </RoundSection>
+
+        <RoundSection
+          title="Round 3 — This or That"
+          emoji="⚖️"
+          roundKey="round3"
+          enabled={enabledRounds.round3}
+          onToggle={toggleRound}
+        >
+          <Round3Builder data={round3Questions} onChange={setRound3Questions} />
+        </RoundSection>
+
+        <RoundSection
+          title="Round 4 — Riddle"
+          emoji="🧩"
+          roundKey="round4"
+          enabled={enabledRounds.round4}
+          onToggle={toggleRound}
+        >
+          <Round5Builder data={round4Questions} onChange={setRound4Questions} />
+        </RoundSection>
+
+        <RoundSection
+          title="Round 5 — Rapid Fire"
+          emoji="⚡"
+          roundKey="round5"
+          enabled={enabledRounds.round5}
+          onToggle={toggleRound}
+        >
+          <Round4Builder data={round5Questions} onChange={setRound5Questions} />
+        </RoundSection>
+
+        {/* Action Buttons */}
+        <div className="flex gap-3 mt-8">
+          <button
+            onClick={onHome}
+            className="px-6 py-3 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-semibold flex items-center justify-center gap-2 transition-colors"
+          >
+            <Home size={18} /> Home
+          </button>
+          <button
+            onClick={handleStart}
+            className="flex-1 px-6 py-3 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white font-bold text-lg flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/30 transition-all"
+          >
+            <Play size={20} /> Start Game
+          </button>
+        </div>
       </div>
-    </motion.div>
+    </div>
   );
 }

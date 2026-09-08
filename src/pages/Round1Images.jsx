@@ -8,7 +8,7 @@ import Confetti from '../components/Confetti';
 import { playSound } from '../utils/sounds';
 import { answersMatch } from '../utils/helpers';
 
-export default function Round1Images({ questions, onComplete, totalScore }) {
+export default function Round1Images({ currentRound = 1, questions, onComplete, totalScore, onQuestionAnswered }) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [userAnswer, setUserAnswer] = useState('');
   const [isAnswered, setIsAnswered] = useState(false);

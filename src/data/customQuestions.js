@@ -148,4 +148,90 @@ export const defaultRapidFireQuestions = [
   },
 ];
 
+// ============================================================
+// ROUND 5 – Riddles
+// ============================================================
+export const defaultRiddleQuestions = [
+  {
+    riddle: "I protect the crown but I'm not a king. I cover the root and help it cling. What am I?",
+    answer: "cementum",
+    hint: "I connect the PDL to the root surface."
+  },
+  {
+    riddle: "I am the hardest substance your body makes, yet acid can dissolve me with ease. I coat the crown and gleam and shine — what am I?",
+    answer: "enamel",
+    hint: "96% mineral, formed by ameloblasts."
+  },
+  {
+    riddle: "I have millions of tiny tunnels within me, running from the pulp to the enamel. What am I?",
+    answer: "dentin",
+    hint: "I contain dentinal tubules and am yellowish in color."
+  },
+  {
+    riddle: "I am a living chamber inside every tooth. I carry blood and nerves, and when inflamed, I cause great pain. What am I?",
+    answer: "pulp",
+    hint: "Root canal treatment removes me."
+  },
+];
+
 // ROUND 5 is left empty - will use admin bank or skip
+
+// ============================================================
+// ROUND 1 – Image-based Instrument Identification (PLACEHOLDER)
+// ============================================================
+// NOTE: These are placeholder questions. The actual images
+// (imgq1a.jpg through imgq10b.jpg) need to be added to
+// src/assets/round1-images/ for this to work.
+
+export const defaultImageQuestions = [
+  {
+    image1: '/src/assets/round1-images/imgq1a.jpg',
+    image2: '/src/assets/round1-images/imgq1b.jpg',
+    answer: 'Gates-Glidden Drill',
+  },
+  {
+    image1: '/src/assets/round1-images/imgq2a.jpg',
+    image2: '/src/assets/round1-images/imgq2b.jpg',
+    answer: 'Peeso Reamer',
+  },
+  {
+    image1: '/src/assets/round1-images/imgq3a.jpg',
+    image2: '/src/assets/round1-images/imgq3b.jpg',
+    answer: 'Finger Spreader',
+  },
+  {
+    image1: '/src/assets/round1-images/imgq4a.jpg',
+    image2: '/src/assets/round1-images/imgq4b.jpg',
+    answer: 'Hand Spreader',
+  },
+  {
+    image1: '/src/assets/round1-images/imgq5a.jpg',
+    image2: '/src/assets/round1-images/imgq5b.jpg',
+    answer: 'Plugger',
+  },
+  {
+    image1: '/src/assets/round1-images/imgq6a.jpg',
+    image2: '/src/assets/round1-images/imgq6b.jpg',
+    answer: 'Barbed Broach',
+  },
+  {
+    image1: '/src/assets/round1-images/imgq7a.jpg',
+    image2: '/src/assets/round1-images/imgq7b.jpg',
+    answer: 'Lentulo Spiral',
+  },
+  {
+    image1: '/src/assets/round1-images/imgq8a.jpg',
+    image2: '/src/assets/round1-images/imgq8b.jpg',
+    answer: 'H-File',
+  },
+  {
+    image1: '/src/assets/round1-images/imgq9a.jpg',
+    image2: '/src/assets/round1-images/imgq9b.jpg',
+    answer: 'K-File',
+  },
+  {
+    image1: '/src/assets/round1-images/imgq10a.jpg',
+    image2: '/src/assets/round1-images/imgq10b.jpg',
+    answer: 'Rotary NiTi File',
+  },
+];

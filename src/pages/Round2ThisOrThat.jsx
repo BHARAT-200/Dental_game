@@ -7,7 +7,7 @@ import Button from '../components/Button';
 import Confetti from '../components/Confetti';
 import { playSound } from '../utils/sounds';
 
-export default function Round2ThisOrThat({ questions, onComplete, totalScore }) {
+export default function Round2ThisOrThat({ currentRound = 2, questions, onComplete, totalScore, onQuestionAnswered }) {
   const [current, setCurrent] = useState(0);
   const [selected, setSelected] = useState(null);
   const [roundScore, setRoundScore] = useState(0);
@@ -68,7 +68,7 @@ export default function Round2ThisOrThat({ questions, onComplete, totalScore }) 
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="min-h-screen pt-20 pb-12 px-4">
       <Confetti trigger={confetti} type="standard" />
       <div className="max-w-2xl mx-auto">
-        <ProgressBar currentRound={2} />
+        <ProgressBar currentRound={currentRound} />
 
         <div className="flex items-center justify-between mb-6">
           <div>

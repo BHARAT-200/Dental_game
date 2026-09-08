@@ -8,7 +8,7 @@ import Confetti from '../components/Confetti';
 import { playSound } from '../utils/sounds';
 import { answersMatch } from '../utils/helpers';
 
-export default function Round5RapidFire({ questions, onComplete, totalScore }) {
+export default function Round5RapidFire({ currentRound = 5, questions, onComplete, totalScore, onQuestionAnswered }) {
   const [current, setCurrent] = useState(0);
   const [input, setInput] = useState('');
   const [timeLeft, setTimeLeft] = useState(questions[0]?.timeLimit || 10);

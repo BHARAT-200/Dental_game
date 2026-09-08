@@ -8,7 +8,7 @@ import Confetti from '../components/Confetti';
 import { playSound } from '../utils/sounds';
 import { answersMatch } from '../utils/helpers';
 
-export default function Round3Riddles({ riddles, onComplete, totalScore }) {
+export default function Round3Riddles({ currentRound = 3, riddles, onComplete, totalScore, onQuestionAnswered }) {
   const [current, setCurrent] = useState(0);
   const [input, setInput] = useState('');
   const [submitted, setSubmitted] = useState(false);
@@ -70,7 +70,7 @@ export default function Round3Riddles({ riddles, onComplete, totalScore }) {
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="min-h-screen pt-20 pb-12 px-4">
       <Confetti trigger={confetti} type="standard" />
       <div className="max-w-xl mx-auto">
-        <ProgressBar currentRound={3} />
+        <ProgressBar currentRound={currentRound} />
 
         <div className="flex items-center justify-between mb-6">
           <div>

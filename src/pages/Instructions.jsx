@@ -1,15 +1,20 @@
 import { motion } from 'framer-motion';
 import Button from '../components/Button';
 
-const rounds = [
-  { emoji: '🖼️', title: 'Round 1 – Identify the Image', desc: 'Look at two dental images and identify what they show. +10 pts per correct answer.', color: 'border-indigo-500/30' },
-  { emoji: '⚖️', title: 'Round 2 – This or That', desc: 'Pick the correct option from two dental choices. +10 pts each.', color: 'border-purple-500/30' },
-  { emoji: '🧩', title: 'Round 3 – Riddles', desc: 'Solve dental science riddles with hints available. +15 pts each.', color: 'border-cyan-500/30' },
-  { emoji: '📝', title: 'Round 4 – MCQs', desc: 'Answer multiple-choice dental questions. +10 pts each.', color: 'border-green-500/30' },
-  { emoji: '⚡', title: 'Round 5 – Rapid Fire', desc: 'Quick-fire dental questions against the clock. +5 pts each.', color: 'border-yellow-500/30' },
-];
+export default function Instructions({ onStart, enabledRounds }) {
+  // Filter rounds to only show enabled ones
+  const allRounds = [
+    { key: 'round1', emoji: '🖼️', title: 'Round 1 – Identify Instrument', desc: 'Identify dental instruments from images or emoji clues. +10 pts per correct answer.', color: 'border-indigo-500/30' },
+    { key: 'round2', emoji: '📝', title: 'Round 2 – Identify Through Function', desc: 'Answer multiple-choice questions about dental instruments and their functions. +10 pts each.', color: 'border-purple-500/30' },
+    { key: 'round3', emoji: '⚖️', title: 'Round 3 – This or That', desc: 'Pick the correct option from two dental choices. +10 pts each.', color: 'border-cyan-500/30' },
+    { key: 'round4', emoji: '🧩', title: 'Round 4 – Riddle', desc: 'Solve dental science riddles with hints available. +15 pts each.', color: 'border-green-500/30' },
+    { key: 'round5', emoji: '⚡', title: 'Round 5 – Rapid Fire', desc: 'Quick-fire dental questions against the clock. +5 pts each.', color: 'border-yellow-500/30' },
+  ];
 
-export default function Instructions({ onStart }) {
+  const rounds = enabledRounds 
+    ? allRounds.filter(r => enabledRounds[r.key])
+    : allRounds;
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 30 }}
